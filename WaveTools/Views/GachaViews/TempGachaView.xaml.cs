@@ -69,13 +69,30 @@ namespace WaveTools.Views.GachaViews
             var records = gachaData.List.Where(pool => pool.CardPoolId == selectedCardPoolId).SelectMany(pool => pool.Records).ToList();
             Logging.Write($"Total records found: {records.Count}", 0);
 
-            // 检查是否存在任何记录包含 id 字段
-            if (records.All(r => string.IsNullOrEmpty(r.Id)))
+            if (records == null || records.Count == 0)
             {
-                TempGachaGrid.Visibility = Visibility.Collapsed;
-                Logging.Write("No record found with id field", 1);
-                NotificationManager.RaiseNotification($"UID:{selectedUID}的抽卡记录需要更新", "抽卡分析逻辑更新\n使用旧版本抽卡记录可能会显示异常\n建议立即更新抽卡记录", InfoBarSeverity.Warning, false, 5);
+                Logging.Write("Current card pool has no records", 1);
                 return;
+            }
+            bool hasAnyRecordWithId = records.Any(r => !string.IsNullOrWhiteSpace(r.Id));
+
+            if (!hasAnyRecordWithId)
+            {
+                Logging.Write("Current records are legacy format without id field. Generate temporary display id.", 1);
+
+                GenerateTemporaryDisplayIds(records, selectedCardPoolId);
+
+                NotificationManager.RaiseNotification(
+                    $"UID:{selectedUID}的抽卡记录是旧版本格式",
+                    "已临时兼容显示旧版抽卡记录。\n建议之后更新抽卡记录以升级为新版格式。",
+                    InfoBarSeverity.Warning,
+                    false,
+                    5
+                );
+            }
+            else
+            {
+                GenerateMissingTemporaryDisplayIds(records, selectedCardPoolId);
             }
 
             // 筛选出四星和五星的记录
@@ -97,6 +114,127 @@ namespace WaveTools.Views.GachaViews
             // 显示抽卡记录
             DisplayGachaRecords(records);
             Logging.Write("LoadData method finished", 0);
+        }
+
+        private void GenerateTemporaryDisplayIds(List<GachaModel.GachaRecord> records, int cardPoolId)
+        {
+            if (records == null || records.Count == 0)
+            {
+                return;
+            }
+
+            var timestampCounter = new Dictionary<long, int>();
+
+            foreach (var record in records.OrderByDescending(r => r.Time).ToList())
+            {
+                if (record == null || string.IsNullOrWhiteSpace(record.Time))
+                {
+                    continue;
+                }
+
+                long timestamp;
+
+                try
+                {
+                    timestamp = DateTimeOffset.Parse(record.Time).ToUnixTimeSeconds();
+                }
+                catch
+                {
+                    timestamp = DateTimeOffset.Now.ToUnixTimeSeconds();
+                }
+
+                if (!timestampCounter.ContainsKey(timestamp))
+                {
+                    int sameTimestampCount = records.Count(r =>
+                    {
+                        if (r == null || string.IsNullOrWhiteSpace(r.Time))
+                        {
+                            return false;
+                        }
+
+                        try
+                        {
+                            return DateTimeOffset.Parse(r.Time).ToUnixTimeSeconds() == timestamp;
+                        }
+                        catch
+                        {
+                            return false;
+                        }
+                    });
+
+                    timestampCounter[timestamp] = Math.Min(sameTimestampCount, 10);
+                }
+
+                int drawNumber = timestampCounter[timestamp];
+                timestampCounter[timestamp]--;
+
+                record.Id = $"{timestamp}{cardPoolId:D4}{drawNumber:D4}";
+            }
+        }
+
+        private void GenerateMissingTemporaryDisplayIds(List<GachaModel.GachaRecord> records, int cardPoolId)
+        {
+            if (records == null || records.Count == 0)
+            {
+                return;
+            }
+
+            var recordsWithoutId = records
+                .Where(r => r != null && string.IsNullOrWhiteSpace(r.Id))
+                .ToList();
+
+            if (recordsWithoutId.Count == 0)
+            {
+                return;
+            }
+
+            var timestampCounter = new Dictionary<long, int>();
+
+            foreach (var record in recordsWithoutId.OrderByDescending(r => r.Time).ToList())
+            {
+                if (string.IsNullOrWhiteSpace(record.Time))
+                {
+                    continue;
+                }
+
+                long timestamp;
+
+                try
+                {
+                    timestamp = DateTimeOffset.Parse(record.Time).ToUnixTimeSeconds();
+                }
+                catch
+                {
+                    timestamp = DateTimeOffset.Now.ToUnixTimeSeconds();
+                }
+
+                if (!timestampCounter.ContainsKey(timestamp))
+                {
+                    int sameTimestampCount = recordsWithoutId.Count(r =>
+                    {
+                        if (r == null || string.IsNullOrWhiteSpace(r.Time))
+                        {
+                            return false;
+                        }
+
+                        try
+                        {
+                            return DateTimeOffset.Parse(r.Time).ToUnixTimeSeconds() == timestamp;
+                        }
+                        catch
+                        {
+                            return false;
+                        }
+                    });
+
+                    timestampCounter[timestamp] = Math.Min(sameTimestampCount, 10);
+                }
+
+                int drawNumber = timestampCounter[timestamp];
+                timestampCounter[timestamp]--;
+
+                record.Id = $"{timestamp}{cardPoolId:D4}{drawNumber:D4}";
+            }
         }
 
         private void DisplayGachaRecords(List<GachaModel.GachaRecord> records)
@@ -203,7 +341,6 @@ namespace WaveTools.Views.GachaViews
             {
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
-                Height = 320
             };
 
             var contentPanel = new StackPanel();

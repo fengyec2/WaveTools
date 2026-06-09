@@ -49,7 +49,6 @@
   <ItemGroup>
     <None Remove="Assets\Don_Alipay.jpg" />
     <None Remove="Assets\Don_Wechat.jpg" />
-    <None Remove="Views\NotifyViews\NotifyGalleryView.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -144,6 +143,9 @@
     <None Update="Imgs\Logo_JSG-R.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Page Update="Views\GachaViews\ScreenShotGacha.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="Views\NotifyViews\NotifyGalleryView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

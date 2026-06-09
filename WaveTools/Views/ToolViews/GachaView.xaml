@@ -8,79 +8,168 @@
     mc:Ignorable="d"
     Background="Transparent">
 
-    <Grid HorizontalAlignment="Stretch" Margin="24">
+    <Grid HorizontalAlignment="Stretch"
+          VerticalAlignment="Stretch"
+          Margin="24">
+
         <Grid.RowDefinitions>
-            <RowDefinition Height="1*"/>
-            <RowDefinition Height="6*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" HorizontalAlignment="Left">
-            <StackPanel HorizontalAlignment="Stretch" Orientation="Horizontal">
-                <Button x:Name="GetGachaURL" Content="获取抽卡记录" Click="GetGachaURL_Click" Margin="0 0 0 8"/>
-                <Button x:Name="UpdateGacha" Content="更新记录" Click="UpdateGacha_Click" Margin="8 0 0 8"/>
-                <Button x:Name="OpenGachaWeb" Content="打开抽卡记录" Click="OpenGachaWeb_Click" IsEnabled="False" Margin="8 0 0 8" Visibility="Collapsed"/>
-                <Button x:Name="ImportWWGF" Click="ImportWWGF_Click" Margin="8 0 0 8">
+        <StackPanel Grid.Row="0"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Top">
+
+            <StackPanel HorizontalAlignment="Stretch"
+                        Orientation="Horizontal">
+
+                <Button x:Name="GetGachaURL"
+                        Content="获取抽卡记录"
+                        Click="GetGachaURL_Click"
+                        Margin="0 0 0 8"/>
+
+                <Button x:Name="UpdateGacha"
+                        Content="更新记录"
+                        Click="UpdateGacha_Click"
+                        Margin="8 0 0 8"/>
+
+                <Button x:Name="OpenGachaWeb"
+                        Content="打开抽卡记录"
+                        Click="OpenGachaWeb_Click"
+                        IsEnabled="False"
+                        Margin="8 0 0 8"
+                        Visibility="Collapsed"/>
+
+                <Button x:Name="ImportWWGF"
+                        Click="ImportWWGF_Click"
+                        Margin="8 0 0 8">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="导入记录"/>
                         <TextBlock Text="[CN]" FontWeight="Bold"/>
                     </StackPanel>
                 </Button>
-                <Button x:Name="ExportWWGF" Click="ExportWWGF_Click" Margin="8 0 0 8">
+
+                <Button x:Name="ExportWWGF"
+                        Click="ExportWWGF_Click"
+                        Margin="8 0 0 8">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="导出记录"/>
                         <TextBlock Text="[CN]" FontWeight="Bold"/>
                     </StackPanel>
                 </Button>
-                <Button x:Name="ClearGacha" Content="清空记录" FontWeight="Bold" Foreground="Red" Click="ClearGacha_Click" IsEnabled="False" Margin="8 0 0 8"/>
-                <ComboBox x:Name="GachaRecordsUID" 
+
+                <Button x:Name="ClearGacha"
+                        Content="清空记录"
+                        FontWeight="Bold"
+                        Foreground="Red"
+                        Click="ClearGacha_Click"
+                        IsEnabled="False"
+                        Margin="8 0 0 8"/>
+
+                <ComboBox x:Name="GachaRecordsUID"
                           DropDownOpened="ComboBox_Click"
-                  PlaceholderText="选择UID" 
-                  Width="120" Margin="8,0,0,8"
-                  SelectionChanged="GachaRecordsUID_SelectionChanged">
-                </ComboBox>
+                          PlaceholderText="选择UID"
+                          Width="120"
+                          Margin="8,0,0,8"
+                          SelectionChanged="GachaRecordsUID_SelectionChanged"/>
+
+                <ComboBox x:Name="GachaPoolComboBox"
+                          PlaceholderText="选择卡池"
+                          Width="112"
+                          MinWidth="112"
+                          MaxWidth="290"
+                          Margin="8,0,0,8"
+                          IsEnabled="False"
+                          SelectionChanged="GachaPoolComboBox_SelectionChanged"/>
+                <Button x:Name="CreateCapture" Content="创建截图" Click="CreateCapture_Click" Margin="8 0 0 8"/>
             </StackPanel>
-            <StackPanel HorizontalAlignment="Stretch" Orientation="Horizontal">
-                <TextBlock Text="状态:" />
-                <TextBlock x:Name="gacha_status" Text="等待操作"/>
+
+            <StackPanel HorizontalAlignment="Stretch"
+                        Orientation="Horizontal">
+                <TextBlock Text="状态:"/>
+                <TextBlock x:Name="gacha_status"
+                           Text="等待操作"/>
             </StackPanel>
         </StackPanel>
 
-        <Grid Grid.Row="1" HorizontalAlignment="Stretch">
-            <Grid x:Name="loadGachaProgress" Visibility="Visible" Width="120" Height="120" CornerRadius="12" Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <ProgressRing Visibility="Visible" x:Name="loadGachaProgressRing"/>
-                    <TextBlock Visibility="Visible" x:Name="loadGachaText" Text="等待刷新列表" Margin="0 12 0 0"/>
+        <Grid Grid.Row="1"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch"
+              Margin="0,12,0,0">
+
+            <Grid x:Name="loadGachaProgress"
+                  Visibility="Visible"
+                  Width="120"
+                  Height="120"
+                  CornerRadius="12"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Top"
+                  Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}">
+                <StackPanel VerticalAlignment="Center"
+                            HorizontalAlignment="Center">
+                    <ProgressRing Visibility="Visible"
+                                  x:Name="loadGachaProgressRing"/>
+                    <TextBlock Visibility="Visible"
+                               x:Name="loadGachaText"
+                               Text="等待刷新列表"
+                               Margin="0 12 0 0"/>
                 </StackPanel>
             </Grid>
-            <Grid x:Name="noGachaFound" Visibility="Visible" Width="120" Height="120" CornerRadius="12" Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <FontIcon Visibility="Visible" FontFamily="Segoe Fluent Icons" Glyph="&#xeb90;"/>
-                    <TextBlock Visibility="Visible" Text="无抽卡记录" Margin="0 12 0 0"/>
+
+            <Grid x:Name="noGachaFound"
+                  Visibility="Visible"
+                  Width="120"
+                  Height="120"
+                  CornerRadius="12"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Top"
+                  Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}">
+                <StackPanel VerticalAlignment="Center"
+                            HorizontalAlignment="Center">
+                    <FontIcon Visibility="Visible"
+                              FontFamily="Segoe Fluent Icons"
+                              Glyph="&#xeb90;"/>
+                    <TextBlock Visibility="Visible"
+                               Text="无抽卡记录"
+                               Margin="0 12 0 0"/>
                 </StackPanel>
             </Grid>
-            <StackPanel x:Name="gachaView" Grid.Column="0" Visibility="Collapsed">
-                <SelectorBar x:Name="gachaNav">
-                </SelectorBar>
-                <Frame x:Name="gachaFrame" Margin="12"/>
-            </StackPanel>
+
+            <Grid x:Name="gachaView"
+                  Visibility="Collapsed"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch">
+
+                <Frame x:Name="gachaFrame"
+                       Margin="0 8 0 -8"
+                       HorizontalAlignment="Stretch"
+                       VerticalAlignment="Stretch"
+                       Navigated="gachaFrame_Navigated"
+                       SizeChanged="gachaFrame_SizeChanged"/>
+            </Grid>
         </Grid>
 
         <TeachingTip x:Name="ClearGachaTip"
-            Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}"
-            Title="清空抽卡记录"
-            IsLightDismissEnabled="False"
-            Target="{x:Bind ClearGacha}">
+                     Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}"
+                     Title="清空抽卡记录"
+                     IsLightDismissEnabled="False"
+                     Target="{x:Bind ClearGacha}">
             <TeachingTip.Content>
                 <StackPanel Spacing="4">
-                    <TextBlock x:Name="ClearGachaText" Text=""/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Content="确认清空记录" Click="ConfirmClearGachaRecords" Margin="0,0,0,0"/>
-                        <Button Content="确认清空记录和UID" Click="ConfirmClearGachaRecordsAndUID" Margin="0,0,0,0"/>
+                    <TextBlock x:Name="ClearGachaText"
+                               Text=""/>
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8">
+                        <Button Content="确认清空记录"
+                                Click="ConfirmClearGachaRecords"
+                                Margin="0,0,0,0"/>
+                        <Button Content="确认清空记录和UID"
+                                Click="ConfirmClearGachaRecordsAndUID"
+                                Margin="0,0,0,0"/>
                     </StackPanel>
                 </StackPanel>
             </TeachingTip.Content>
         </TeachingTip>
-
-
     </Grid>
 </Page>

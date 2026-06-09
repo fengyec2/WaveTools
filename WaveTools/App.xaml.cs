@@ -18,16 +18,20 @@
 
 // For more information, please refer to <https://www.gnu.org/licenses/gpl-3.0.html>
 
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using WaveTools.Depend;
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-using Windows.Storage;
-using WaveTools.Views;
 using WaveTools.Depend;
+using WaveTools.Depend;
+using WaveTools.Views;
+using Windows.Graphics;
+using Windows.Storage;
+using WinRT.Interop;
 
 
 namespace WaveTools
@@ -70,6 +74,7 @@ namespace WaveTools
             if (AppDataController.GetTerminalMode() == -1 || AppDataController.GetTerminalMode() == 0)
             {
                 m_window = new MainWindow();
+                CenterWindow(m_window);
                 m_window.Activate();
                 // 处理窗口的 Closed 事件
                 m_window.Closed += OnWindowClosed;
@@ -125,6 +130,7 @@ namespace WaveTools
             if (response)
             {
                 m_window = new MainWindow();
+                CenterWindow(m_window);
                 m_window.Activate();
             }
         }
@@ -215,7 +221,22 @@ namespace WaveTools
             }
         }
 
+        private void CenterWindow(Window window)
+        {
+            IntPtr hWnd = WindowNative.GetWindowHandle(window);
+            WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
+            AppWindow appWindow = AppWindow.GetFromWindowId(windowId);
 
+            DisplayArea displayArea = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary);
+            RectInt32 workArea = displayArea.WorkArea;
+
+            SizeInt32 windowSize = appWindow.Size;
+
+            int centeredX = workArea.X + (workArea.Width - windowSize.Width) / 2;
+            int centeredY = workArea.Y + (workArea.Height - windowSize.Height) / 2;
+
+            appWindow.Move(new PointInt32(centeredX, centeredY));
+        }
 
     }
 }
