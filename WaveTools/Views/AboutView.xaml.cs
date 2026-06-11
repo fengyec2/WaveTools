@@ -464,7 +464,7 @@ namespace WaveTools.Views
 
             content.Children.Add(new TextBlock
             {
-                Text = "将把当前数据完整移动到新目录。移动完成并校验通过后，才会删除旧目录。",
+                Text = "将把当前数据完整移动到新目录\n移动完成并校验通过后才会删除旧目录",
                 TextWrapping = TextWrapping.Wrap
             });
 
@@ -510,7 +510,7 @@ namespace WaveTools.Views
 
             content.Children.Add(new TextBlock
             {
-                Text = "将把当前数据完整移动回默认目录。移动完成并校验通过后，才会删除旧目录。",
+                Text = "将把当前数据完整移动回默认目录\n移动完成并校验通过后才会删除旧目录",
                 TextWrapping = TextWrapping.Wrap
             });
 
@@ -563,7 +563,7 @@ namespace WaveTools.Views
 
             content.Children.Add(new TextBlock
             {
-                Text = "检测到数据目录正在被占用。请关闭占用程序后再重试移动。",
+                Text = "检测到数据目录正在被占用\n请关闭占用程序后再重试移动",
                 TextWrapping = TextWrapping.Wrap
             });
 
@@ -597,7 +597,7 @@ namespace WaveTools.Views
                 {
                     content.Children.Add(new TextBlock
                     {
-                        Text = $"还有 {lockingProcesses.Count - 10} 个进程未显示。",
+                        Text = $"还有 {lockingProcesses.Count - 10} 个进程未显示",
                         TextWrapping = TextWrapping.Wrap,
                         Opacity = 0.65
                     });
@@ -627,20 +627,12 @@ namespace WaveTools.Views
                 {
                     content.Children.Add(new TextBlock
                     {
-                        Text = $"还有 {blockedPaths.Count - 10} 个目录未显示。",
+                        Text = $"还有 {blockedPaths.Count - 10} 个目录未显示",
                         TextWrapping = TextWrapping.Wrap,
                         Opacity = 0.65
                     });
                 }
             }
-
-            content.Children.Add(new TextBlock
-            {
-                Text = "如果是 CMD / PowerShell，请先切换到其他目录或关闭窗口。例如执行 cd /d C:\\ 后再重试。",
-                TextWrapping = TextWrapping.Wrap,
-                Opacity = 0.65,
-                Margin = new Thickness(0, 8, 0, 0)
-            });
 
             DialogManager.RaiseDialog(
                 XamlRoot,
@@ -656,7 +648,7 @@ namespace WaveTools.Views
         {
             DataRootLockCheckResult checkResult = null;
 
-            WaitOverlayManager.RaiseWaitOverlay(true, "正在检查数据目录占用", "正在检测是否有程序正在占用数据目录。", true, 0);
+            WaitOverlayManager.RaiseWaitOverlay(true, "正在检查数据目录占用", "正在检测是否有程序正在占用数据目录", true, 0);
 
             try
             {
@@ -679,7 +671,7 @@ namespace WaveTools.Views
             }
             await Task.Delay(180);
 
-            NotificationManager.RaiseNotification("数据目录被占用", "已拦截移动操作，请查看占用详情。", InfoBarSeverity.Warning, true, 4);
+            NotificationManager.RaiseNotification("数据目录被占用", "已拦截移动操作\n请查看占用详情", InfoBarSeverity.Warning, true, 4);
             await ShowDataRootLockedDialogAsync(checkResult.LockingProcesses, checkResult.BlockedPaths);
 
             return false;
@@ -737,7 +729,7 @@ namespace WaveTools.Views
 
             contentPanel.Children.Add(new TextBlock
             {
-                Text = "检测到数据目录正在被占用，已取消本次移动。请关闭占用程序后再重试。",
+                Text = "检测到数据目录正在被占用\n已取消本次移动，请关闭占用程序后再重试",
                 TextWrapping = TextWrapping.Wrap
             });
 
@@ -771,7 +763,7 @@ namespace WaveTools.Views
                 {
                     contentPanel.Children.Add(new TextBlock
                     {
-                        Text = $"还有 {lockingProcesses.Count - 12} 个进程未显示。",
+                        Text = $"还有 {lockingProcesses.Count - 12} 个进程未显示",
                         TextWrapping = TextWrapping.Wrap,
                         Opacity = 0.65
                     });
@@ -801,20 +793,12 @@ namespace WaveTools.Views
                 {
                     contentPanel.Children.Add(new TextBlock
                     {
-                        Text = $"还有 {blockedPaths.Count - 12} 个目录未显示。",
+                        Text = $"还有 {blockedPaths.Count - 12} 个目录未显示",
                         TextWrapping = TextWrapping.Wrap,
                         Opacity = 0.65
                     });
                 }
             }
-
-            contentPanel.Children.Add(new TextBlock
-            {
-                Text = "如果是 CMD / PowerShell，请先切换到其他目录或关闭窗口。例如执行：cd /d C:\\",
-                TextWrapping = TextWrapping.Wrap,
-                Opacity = 0.65,
-                Margin = new Thickness(0, 8, 0, 0)
-            });
 
             ScrollViewer scrollViewer = new ScrollViewer
             {
@@ -1332,7 +1316,7 @@ namespace WaveTools.Views
             {
                 NotificationManager.RaiseNotification(
                     "清理任务正在运行",
-                    "请等待当前清理完成后再进行下一次清理。",
+                    "请等待当前清理完成后再进行下一次清理",
                     InfoBarSeverity.Warning,
                     true,
                     3);
@@ -1369,7 +1353,7 @@ namespace WaveTools.Views
             DialogManager.RaiseDialog(
                 XamlRoot,
                 "清理缓存",
-                "将删除 Cache 目录中的临时缓存文件。首页背景、轮播图和资源图标会在需要时重新生成或重新下载。",
+                "将删除 Cache 目录中的临时缓存文件\n首页背景、轮播图和资源图标会在需要时重新生成或重新下载",
                 true,
                 "开始清理",
                 async () => await ClearCacheAsync()
@@ -1381,7 +1365,7 @@ namespace WaveTools.Views
             DialogManager.RaiseDialog(
                 XamlRoot,
                 "清理日志",
-                "将删除 Logs 目录中可释放的日志文件。当前正在写入的日志可能会被保留。",
+                "将删除 Logs 目录中可释放的日志文件\n当前正在写入的日志可能会被保留",
                 true,
                 "开始清理",
                 async () => await ClearLogsAsync()
@@ -1395,7 +1379,7 @@ namespace WaveTools.Views
                 return;
             }
 
-            WaitOverlayManager.RaiseWaitOverlay(true, "正在清理缓存", "正在释放首页资源并清理 Cache 目录。", true, 0);
+            WaitOverlayManager.RaiseWaitOverlay(true, "正在清理缓存", "正在释放首页资源并清理 Cache 目录", true, 0);
 
             try
             {
@@ -1408,7 +1392,7 @@ namespace WaveTools.Views
                 {
                     NotificationManager.RaiseNotification(
                         "缓存已部分清理",
-                        $"已删除 {result.DeletedFiles} 个文件、{result.DeletedDirectories} 个目录，{result.FailedItems} 项被占用或无权限。",
+                        $"已删除 {result.DeletedFiles} 个文件\n{result.DeletedDirectories} 个目录\n{result.FailedItems} 项被占用或无权限",
                         InfoBarSeverity.Warning,
                         true,
                         5);
@@ -1417,7 +1401,7 @@ namespace WaveTools.Views
 
                 NotificationManager.RaiseNotification(
                     "缓存清理完成",
-                    $"已删除 {result.DeletedFiles} 个文件、{result.DeletedDirectories} 个目录。",
+                    $"已删除 {result.DeletedFiles} 个文件\n{result.DeletedDirectories} 个目录",
                     InfoBarSeverity.Success,
                     true,
                     3);
@@ -1440,7 +1424,7 @@ namespace WaveTools.Views
                 return;
             }
 
-            WaitOverlayManager.RaiseWaitOverlay(true, "正在清理日志", "正在清理 Logs 目录中可释放的日志文件。", true, 0);
+            WaitOverlayManager.RaiseWaitOverlay(true, "正在清理日志", "正在清理 Logs 目录中可释放的日志文件", true, 0);
 
             try
             {
@@ -1451,7 +1435,7 @@ namespace WaveTools.Views
                 {
                     NotificationManager.RaiseNotification(
                         "日志已部分清理",
-                        $"已删除 {result.DeletedFiles} 个文件、{result.DeletedDirectories} 个目录，{result.FailedItems} 项正在使用中。",
+                        $"已删除 {result.DeletedFiles} 个文件\n{result.DeletedDirectories} 个目录\n{result.FailedItems} 项正在使用中",
                         InfoBarSeverity.Warning,
                         true,
                         5);
@@ -1460,7 +1444,7 @@ namespace WaveTools.Views
 
                 NotificationManager.RaiseNotification(
                     "日志清理完成",
-                    $"已删除 {result.DeletedFiles} 个文件、{result.DeletedDirectories} 个目录。",
+                    $"已删除 {result.DeletedFiles} 个文件\n{result.DeletedDirectories} 个目录",
                     InfoBarSeverity.Success,
                     true,
                     3);

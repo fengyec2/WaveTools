@@ -26,7 +26,7 @@
 
             <StackPanel Grid.Column="0"
                         VerticalAlignment="Center"
-                        Width="300"
+                        Width="280"
                         HorizontalAlignment="Right">
                 <Image Source="ms-appx:///Imgs/FirstRun_Windows.png"
                        HorizontalAlignment="Right"
@@ -60,7 +60,7 @@
                 <Button x:Name="DefaultLocationButton"
                         Click="UseDefaultLocation_Click"
                         HorizontalContentAlignment="Left"
-                        Width="280"
+                        Width="185"
                         MinHeight="58"
                         Padding="12 8">
                     <StackPanel Orientation="Horizontal" Spacing="10">
@@ -72,18 +72,12 @@
                     </StackPanel>
                 </Button>
 
-                <TextBlock x:Name="DefaultPathText"
-                           Text=""
-                           Width="300"
-                           Opacity="0.65"
-                           FontSize="12"
-                           TextWrapping="WrapWholeWords"
-                           Margin="0 8 0 16"/>
+                <StackPanel Height="8"/>
 
                 <Button x:Name="CustomLocationButton"
                         Click="UseCustomLocation_Click"
                         HorizontalContentAlignment="Left"
-                        Width="280"
+                        Width="185"
                         MinHeight="58"
                         Padding="12 8">
                     <StackPanel Orientation="Horizontal" Spacing="10">

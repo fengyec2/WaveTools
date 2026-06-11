@@ -19,9 +19,7 @@ namespace WaveTools.Views.FirstRunViews
             InitializeComponent();
             Logging.Write("Switch to FirstRunInit", 0);
             AppDataController.SetFirstRunStatus(1);
-
-            DefaultPathText.Text = "默认目录：\n" + AppDataController.DefaultDataRootPath;
-            CustomPathText.Text = "选择后会复制当前已有数据，并继续使用该目录。";
+            CustomPathText.Text = "未选择目录";
         }
 
         private void UseDefaultLocation_Click(object sender, RoutedEventArgs e)
