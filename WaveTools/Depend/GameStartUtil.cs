@@ -21,13 +21,11 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using Windows.Storage;
 
 namespace WaveTools.Depend
 {
     internal class GameStartUtil
     {
-        ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
         public async void StartGame()
         {
             string Parameter = "";
@@ -35,8 +33,7 @@ namespace WaveTools.Depend
             // For WW
             if (AppDataController.GetDX11Enable() == 1) Parameter += " -dx11";
 
-            string userDocumentsFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string gamePath = localSettings.Values["Config_GamePath"] as string;
+            string gamePath = AppDataController.GetGamePath();
 
             // 获取游戏的执行路径（目录）
             string gameDirectory = Path.GetDirectoryName(gamePath);
@@ -55,7 +52,7 @@ namespace WaveTools.Depend
 
         public void StartLauncher()
         {
-            string gamePath = localSettings.Values["Config_GamePath"] as string;
+            string gamePath = AppDataController.GetGamePath();
             var processInfo = new ProcessStartInfo(gamePath.Replace("Wuthering Waves.exe", "..\\launcher.exe"));
 
             // 启动程序

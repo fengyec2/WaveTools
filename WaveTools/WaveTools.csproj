@@ -18,7 +18,7 @@
 	<TieredPGO>true</TieredPGO>
 	<DebugType>portable</DebugType>
 	<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-	<PackageCertificateThumbprint>286753A4B751673B996C6C87FAC9A55B90B6ABB2</PackageCertificateThumbprint>
+	<PackageCertificateThumbprint>ABEBFF252D7B192BBC02067B3D690A4FB7B693A7</PackageCertificateThumbprint>
 	<AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
 	<GenerateAppInstallerFile>False</GenerateAppInstallerFile>
 	<AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
@@ -63,7 +63,6 @@
   <ItemGroup>
 	<PackageReference Include="Microsoft-WindowsAPICodePack-Shell" Version="1.1.5" />
 	<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240428000" />
-	<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.756" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 	<PackageReference Include="Spectre.Console" Version="0.47.0" />
 	<PackageReference Include="System.Management" Version="8.0.0" />

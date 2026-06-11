@@ -7,184 +7,603 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
+    <Page.Resources>
+        <Style x:Key="SettingCardBorderStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+
+        <Style x:Key="SettingCardHeaderButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            <Setter Property="CornerRadius" Value="8"/>
+        </Style>
+
+        <Style x:Key="SettingIconStyle" TargetType="FontIcon">
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="2,0,0,0"/>
+        </Style>
+
+        <Style x:Key="SettingTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="SettingDescriptionStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Opacity" Value="0.6"/>
+            <Setter Property="TextWrapping" Value="WrapWholeWords"/>
+        </Style>
+
+        <Style x:Key="ToggleStateTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Opacity" Value="0.75"/>
+            <Setter Property="MinWidth" Value="18"/>
+            <Setter Property="TextAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </Page.Resources>
+
     <Grid>
 
-        <!-- 内容区域 -->
-        <Grid x:Name="MainAPP" Margin="24">
-
+        <Grid x:Name="MainAPP" Margin="32,28,32,24">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="5*"/>
+                <ColumnDefinition Width="24"/>
                 <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 左侧区域 -->
-            <StackPanel Grid.Column="0" HorizontalAlignment="Left">
-
-                <TextBlock Text="程序设置" FontSize="32" FontWeight="Bold" Margin="0 0 0 10"/>
-
-                <ScrollView Height="420" VerticalScrollBarVisibility="Hidden">
-                    <StackPanel HorizontalAlignment="Left">
-                        <TextBlock Text="程序设置" FontSize="16" FontWeight="Bold" Margin="0 0 0 10"/>
-                        <Grid>
-
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="3*"/>
-                                <ColumnDefinition Width="2*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Margin="0 0 20 0" Width="200">
-                                <ToggleButton x:Name="consoleToggle" Click="Console_Toggle" Content="开启控制台" Margin="0 0 0 10"/>
-                                <ToggleButton x:Name="terminalToggle" Click="TerminalMode_Toggle" Content="𝑻𝒆𝒓𝒎𝒊𝒏𝒂𝒍模式" Margin="0 0 0 10"/>
-                                <ToggleButton x:Name="autoCheckUpdateToggle" Click="Auto_Check_Update_Toggle" Content="自动检查更新" Margin="0 0 0 10"/>
-                                <Button x:Name="checkUpdate" Click="Check_Update" Content="检查更新" Margin="0 0 0 10"/>
-                                <Button x:Name="checkDependUpdate" Click="Check_Depend_Update" Content="检查依赖更新" Margin="0 0 0 10"/>
-                                <RadioButtons x:Name="userviceRadio" Header="更新渠道" FontSize="16" FontWeight="Bold" Margin="0 12 0 0">
-                                    <RadioButton x:Name="uservice_JSG" Content="JSG-LLC(JSG-DS)" Checked="uservice_JSG_Choose"/>
-                                    <RadioButton x:Name="uservice_Github" Content="Github" Checked="uservice_Github_Choose"/>
-                                </RadioButtons>
-                                
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="1" Margin="0 0 0 0" Width="200">
-                                <Button x:Name="clearAllData" Click="Clear_AllData_TipShow" FontWeight="Bold" Foreground="Red" Content="清空所有数据" Margin="0 0 0 10"/>
-                                <Button x:Name="backupData" Click="Backup_Data" Content="备份数据" Margin="0 0 0 10"/>
-                                <Button x:Name="restoreData" Click="Restore_Data_Click" Content="还原数据" Margin="0 0 0 10"/>
-                                <StackPanel Orientation="Horizontal">
-                                    <Button x:Name="installSFF" Click="Install_Font_Click" Content="安装图标字体" Margin="0 0 0 10"/>
-                                    <ProgressRing x:Name="installSFF_Progress" Height="20" Width="20" Visibility="Collapsed"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="adminModeToggle" Click="Admin_Mode_Toggle" Content="使用管理员身份运行" Margin="0 0 10 0"/>
-                                <StackPanel x:Name="other" Margin="0 12 0 10" Visibility="Visible">
-                                    <RadioButtons x:Name="themeRadio" Header="主题设置" FontSize="16" FontWeight="Bold" Margin="0 12 0 0">
-                                        <RadioButton x:Name="themeRadio_Follow" Checked="ThemeRadio_Follow">
-                                            <RadioButton.Content>
-                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE713;"/>
-                                                    <TextBlock Text="跟随系统"/>
-                                                </StackPanel>
-                                            </RadioButton.Content>
-                                        </RadioButton>
-                                        <RadioButton x:Name="themeRadio_Light" Checked="ThemeRadio_Light">
-                                            <RadioButton.Content>
-                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE706;"/>
-                                                    <TextBlock Text="浅色模式"/>
-                                                </StackPanel>
-                                            </RadioButton.Content>
-                                        </RadioButton>
-                                        <RadioButton x:Name="themeRadio_Dark" Checked="ThemeRadio_Dark">
-                                            <RadioButton.Content>
-                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE708;"/>
-                                                    <TextBlock Text="深色模式"/>
-                                                </StackPanel>
-                                            </RadioButton.Content>
-                                        </RadioButton>
-                                    </RadioButtons>
-                                </StackPanel>
-
-                            </StackPanel>
-
-                        </Grid>
-                    </StackPanel>
-                </ScrollView>
-
-            </StackPanel>
-
-            <TeachingTip x:Name="UpdateTip"
-                Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}"
-	            CloseButtonContent="关闭">
-                <TeachingTip.IconSource>
-                    <SymbolIconSource Symbol="Admin" />
-                </TeachingTip.IconSource>
-            </TeachingTip>
-
-            <TeachingTip x:Name="TerminalTip"
-                Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}"
-                Target="{x:Bind terminalToggle}"
-                Title="𝑻𝒆𝒓𝒎𝒊𝒏𝒂𝒍模式开启"
-                Subtitle="软件下次启动会进入控制台模式"
-                ActionButtonContent="立即重启"
-                ActionButtonClick="Restart_App"
-	            CloseButtonContent="关闭">
-                <TeachingTip.IconSource>
-                    <SymbolIconSource Symbol="Permissions" />
-                </TeachingTip.IconSource>
-            </TeachingTip>
-
-            <TeachingTip x:Name="ThemeTip"
-                Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}"
-                Target="{x:Bind other}"
-                Title="主题切换需要重启WaveTools"
-                ActionButtonContent="立即重启"
-                ActionButtonClick="Restart_App"
-                CloseButtonContent="关闭">
-                <TeachingTip.IconSource>
-                    <SymbolIconSource Symbol="Permissions" />
-                </TeachingTip.IconSource>
-            </TeachingTip>
-
-            <TeachingTip x:Name="ClearAllDataTip"
-                Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}"
-                Target="{x:Bind clearAllData}"
-                Title="确定要清空数据吗？"
-                ActionButtonClick="ClearAllData"
-                CloseButtonContent="取消">
-                <TeachingTip.ActionButtonContent>
-                    <TextBlock Foreground="red" Text="确认清空" FontWeight="ExtraBold"/>
-                </TeachingTip.ActionButtonContent>
-                <TeachingTip.IconSource>
-                    <SymbolIconSource Symbol="Help" />
-                </TeachingTip.IconSource>
-            </TeachingTip>
-
-
-            <Grid Grid.Column="1">
+            <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <StackPanel Orientation="Vertical"  HorizontalAlignment="Left">
-                    <!-- 应用程序 logo -->
-                    <Border CornerRadius="24" HorizontalAlignment="Left">
-                        <Image Grid.Row="0" Source="ms-appx:///Imgs/Logo_2.jpg" Width="128" Height="128"/>
-                    </Border>
-                    <TextBlock Text="关于" FontSize="18" FontWeight="Bold" Margin="0 12 0 0"/>
-                    <TextBlock x:Name="appName" Text="WaveTools(鸣潮工具箱)" FontSize="12" FontWeight="Bold" Margin="0 4 0 0"/>
-                    <TextBlock x:Name="appToolName" Text="用于《鸣潮》" FontSize="12" FontWeight="Bold" Margin="0 0 0 0"/>
-                    <TextBlock Text="Created by JamXi" FontSize="12" Margin="0 0 0 0"/>
-                    <TextBlock Text="Copyright © JSG-LLC 2017-2024" FontSize="12" FontWeight="Bold" Margin="0 0 0 0"/>
-                    <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="0,8,0,4" HorizontalAlignment="Left">
-                        <Hyperlink NavigateUri="https://github.com/JamXi233/WaveTools/issues" UnderlineStyle="None"><Run Text="报告问题"/></Hyperlink>
-                    </TextBlock>
-                    <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="0,8,0,4" HorizontalAlignment="Left">
-                        <Hyperlink NavigateUri="https://github.com/JamXi233/WaveTools" UnderlineStyle="None"><Run Text="贡献代码"/></Hyperlink>
-                    </TextBlock>
-                    <StackPanel x:Name="debug_Mode" Margin="0 12 0 0" Visibility="Collapsed" Spacing="5">
-                        <TextBlock Text="Debug设置" FontSize="16" FontWeight="Bold"/>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button x:Name="debug_Panic" Click="Debug_Panic_Click" Content="Debug_崩溃"/>
-                            <ToggleButton x:Name="debug_DisableNavBtns" Click="Debug_Disable_NavBtns" Content="禁用导航按钮"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button x:Name="debug_NotificationTest" Click="Debug_Notification_Test" Content="全局通知测试"/>
-                            <Button x:Name="debug_WaitOverlayManager" Click="Debug_WaitOverlayManager_Test" Content="全局等待测试"/>
-                            <Button x:Name="debug_ShowDialogTest" Click="Debug_ShowDialog_Test" Content="全局Dialog测试"/>
-                        </StackPanel>
-                        <TextBlock x:Name="debug_Message" Text="处于Debug模式，控制台无法关闭"/>
-                    </StackPanel>
+
+                <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,22">
+                    <TextBlock Text="设置" FontSize="32" FontWeight="Bold"/>
+                    <TextBlock Text="管理 WaveTools 的行为、更新、数据目录和外观。" FontSize="13" Opacity="0.65"/>
                 </StackPanel>
+
+                <ScrollViewer x:Name="settingsScrollView"
+                      Grid.Row="1"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollMode="Enabled"
+                      HorizontalScrollMode="Disabled">
+                    <Grid Width="{Binding ActualWidth, ElementName=settingsScrollView}"
+                          HorizontalAlignment="Stretch">
+                        <StackPanel Spacing="22"
+                                    Margin="0,0,0,20"
+                                    HorizontalAlignment="Stretch">
+
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="程序行为" FontSize="16" FontWeight="Bold"/>
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <Grid Margin="18,14" MinHeight="42" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE756;" Margin="6 0 0 0"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="控制台" Style="{StaticResource SettingTitleStyle}"/>
+                                            <TextBlock Text="显示或隐藏调试控制台窗口" Style="{StaticResource SettingDescriptionStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <TextBlock x:Name="consoleToggleStateText" Text="关" Style="{StaticResource ToggleStateTextStyle}"/>
+                                            <ToggleSwitch x:Name="consoleToggle"
+                                                      Toggled="Console_Toggle"
+                                                      OnContent=""
+                                                      OffContent=""
+                                                      Width="56"
+                                                      MinWidth="0"
+                                                      VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}" Visibility="Collapsed">
+                                    <Grid Margin="18,14" MinHeight="42" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE756;" Margin="6 0 0 0"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="Terminal 模式" Style="{StaticResource SettingTitleStyle}"/>
+                                            <TextBlock Text="下次启动进入控制台交互模式" Style="{StaticResource SettingDescriptionStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <TextBlock x:Name="terminalToggleStateText" Text="关" Style="{StaticResource ToggleStateTextStyle}"/>
+                                            <ToggleSwitch x:Name="terminalToggle"
+                                                      Toggled="TerminalMode_Toggle"
+                                                      OnContent=""
+                                                      OffContent=""
+                                                      Width="56"
+                                                      MinWidth="0"
+                                                      VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <Grid Margin="18,14" MinHeight="42" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE7EF;" Margin="6 0 0 0"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="管理员身份运行" Style="{StaticResource SettingTitleStyle}"/>
+                                            <TextBlock Text="启动时请求管理员权限" Style="{StaticResource SettingDescriptionStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <TextBlock x:Name="adminModeToggleStateText" Text="关" Style="{StaticResource ToggleStateTextStyle}"/>
+                                            <ToggleSwitch x:Name="adminModeToggle"
+                                                      Toggled="Admin_Mode_Toggle"
+                                                      OnContent=""
+                                                      OffContent=""
+                                                      Width="56"
+                                                      MinWidth="0"
+                                                      VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="更新" FontSize="16" FontWeight="Bold"/>
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <Grid Margin="18,14" MinHeight="42" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE895;" Margin="6 0 0 0"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="自动检查更新" Style="{StaticResource SettingTitleStyle}"/>
+                                            <TextBlock Text="启动时检查是否存在新版本" Style="{StaticResource SettingDescriptionStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <TextBlock x:Name="autoCheckUpdateToggleStateText" Text="关" Style="{StaticResource ToggleStateTextStyle}"/>
+                                            <ToggleSwitch x:Name="autoCheckUpdateToggle"
+                                                      Toggled="Auto_Check_Update_Toggle"
+                                                      OnContent=""
+                                                      OffContent=""
+                                                      Width="56"
+                                                      MinWidth="0"
+                                                      VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <Grid Margin="18,14" MinHeight="42" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE896;" Margin="6 0 0 0"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="检查更新" Style="{StaticResource SettingTitleStyle}"/>
+                                            <TextBlock Text="检查 WaveTools 本体和依赖组件" Style="{StaticResource SettingDescriptionStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <Button x:Name="checkUpdate" Click="Check_Update" Content="检查更新" MinWidth="96"/>
+                                            <Button x:Name="checkDependUpdate" Click="Check_Depend_Update" Content="检查依赖" MinWidth="96"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <Grid Margin="18,14" MinHeight="42" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE774;" Margin="6 0 0 0"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="更新渠道" Style="{StaticResource SettingTitleStyle}"/>
+                                            <TextBlock Text="选择下载更新时使用的镜像源" Style="{StaticResource SettingDescriptionStyle}"/>
+                                        </StackPanel>
+                                        <ComboBox Grid.Column="2"
+                                              HorizontalAlignment="Right"
+                                              x:Name="userviceCombo"
+                                              SelectionChanged="UpdateServiceCombo_SelectionChanged"
+                                              MinWidth="160"
+                                              VerticalAlignment="Center">
+                                            <ComboBoxItem Content="JSG-LLC / JSG-DS"/>
+                                            <ComboBoxItem Content="GitHub"/>
+                                        </ComboBox>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="数据管理" FontSize="16" FontWeight="Bold"/>
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <Grid Margin="18,14" MinHeight="70" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE838;" Margin="6 0 0 0"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="4">
+                                            <TextBlock Text="数据保存目录" Style="{StaticResource SettingTitleStyle}"/>
+                                            <TextBlock x:Name="dataRootPathText"
+                                                   Text=""
+                                                   FontSize="12"
+                                                   Opacity="0.65"
+                                                   TextWrapping="WrapWholeWords"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Button x:Name="changeDataRoot" Click="Change_DataRoot_Click" Content="修改目录" MinWidth="96"/>
+                                                <Button x:Name="openDataRoot" Click="Open_DataRoot_Click" Content="打开目录" MinWidth="96"/>
+                                            </StackPanel>
+                                            <Button x:Name="resetDataRoot" Click="Reset_DataRoot_Click" Content="恢复默认目录" HorizontalAlignment="Right" MinWidth="200"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <Grid HorizontalAlignment="Stretch">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Button x:Name="storageManagementHeaderButton"
+                                                Grid.Row="0"
+                                                Style="{StaticResource SettingCardHeaderButtonStyle}"
+                                                Click="StorageManagementHeader_Click">
+                                            <Button.Resources>
+                                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                                                <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                                                <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                                            </Button.Resources>
+                                            <Grid Margin="18,14,20,14" MinHeight="42" HorizontalAlignment="Stretch">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="48"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="28"/>
+                                                </Grid.ColumnDefinitions>
+                                                <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE8B7;" Margin="6,0,0,0"/>
+                                                <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="2">
+                                                    <TextBlock Text="空间管理" Style="{StaticResource SettingTitleStyle}"/>
+                                                    <TextBlock Text="查看并清理缓存与日志占用" Style="{StaticResource SettingDescriptionStyle}"/>
+                                                </StackPanel>
+                                                <TextBlock x:Name="storageTotalSizeText"
+                                                           Grid.Column="2"
+                                                           Text="正在计算"
+                                                           FontSize="13"
+                                                           Opacity="0.75"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Right"
+                                                           Margin="0,0,12,0"/>
+                                                <FontIcon x:Name="storageManagementChevron"
+                                                          Grid.Column="3"
+                                                          Glyph="&#xE70D;"
+                                                          FontFamily="Segoe Fluent Icons"
+                                                          FontSize="12"
+                                                          Opacity="0.8"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"
+                                                          RenderTransformOrigin="0.5,0.5">
+                                                    <FontIcon.RenderTransform>
+                                                        <RotateTransform x:Name="storageManagementChevronRotate" Angle="0"/>
+                                                    </FontIcon.RenderTransform>
+                                                </FontIcon>
+                                            </Grid>
+                                        </Button>
+
+                                        <StackPanel x:Name="storageManagementContentPanel"
+                                                    Grid.Row="1"
+                                                    Spacing="0"
+                                                    Visibility="Collapsed"
+                                                    Opacity="0"
+                                                    MaxHeight="0"
+                                                    RenderTransformOrigin="0.5,0">
+                                            <StackPanel.RenderTransform>
+                                                <TranslateTransform x:Name="storageManagementContentTranslate" Y="-8"/>
+                                            </StackPanel.RenderTransform>
+                                            <Border BorderThickness="0,1,0,0"
+                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                                                <Grid Margin="66,12,18,12" MinHeight="42" HorizontalAlignment="Stretch">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2" Margin="0,0,24,0">
+                                                        <TextBlock Text="缓存占用" Style="{StaticResource SettingTitleStyle}"/>
+                                                        <TextBlock x:Name="cacheUsageText"
+                                                                   Text="正在计算"
+                                                                   Style="{StaticResource SettingDescriptionStyle}"/>
+                                                    </StackPanel>
+                                                    <Button x:Name="clearCacheButton"
+                                                            Grid.Column="1"
+                                                            Content="清理缓存"
+                                                            Click="Clear_Cache_Click"
+                                                            MinWidth="96"
+                                                            VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+
+                                            <Border BorderThickness="0,1,0,0"
+                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                                                <Grid Margin="66,12,18,12" MinHeight="42" HorizontalAlignment="Stretch">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2" Margin="0,0,24,0">
+                                                        <TextBlock Text="日志占用" Style="{StaticResource SettingTitleStyle}"/>
+                                                        <TextBlock x:Name="logsUsageText"
+                                                                   Text="正在计算"
+                                                                   Style="{StaticResource SettingDescriptionStyle}"/>
+                                                    </StackPanel>
+                                                    <Button x:Name="clearLogsButton"
+                                                            Grid.Column="1"
+                                                            Content="清理日志"
+                                                            Click="Clear_Logs_Click"
+                                                            MinWidth="96"
+                                                            VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <Grid Margin="18,14" MinHeight="42" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE7C3;" Margin="6 0 0 0"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="备份与还原" Style="{StaticResource SettingTitleStyle}"/>
+                                            <TextBlock Text="导出或导入 WaveTools 数据备份" Style="{StaticResource SettingDescriptionStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <Button x:Name="backupData" Click="Backup_Data" Content="备份数据" MinWidth="96"/>
+                                            <Button x:Name="restoreData" Click="Restore_Data_Click" Content="还原数据" MinWidth="96"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <Grid Margin="18,14" MinHeight="42" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE8D2;" Margin="6 0 0 0"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="图标字体" Style="{StaticResource SettingTitleStyle}"/>
+                                            <TextBlock Text="安装缺失的 Segoe 图标字体" Style="{StaticResource SettingDescriptionStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <Button x:Name="installSFF" Click="Install_Font_Click" Content="安装图标字体" MinWidth="128"/>
+                                            <ProgressRing x:Name="installSFF_Progress" Height="20" Width="20" Visibility="Collapsed"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <Grid Margin="18,14" MinHeight="42" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE74D;" Foreground="{ThemeResource AppDangerBrush}" Margin="6 0 0 0"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="清空所有数据" Style="{StaticResource SettingTitleStyle}"/>
+                                            <TextBlock Text="删除配置、抽卡记录、缓存和日志" Style="{StaticResource SettingDescriptionStyle}"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="2" HorizontalAlignment="Right" x:Name="clearAllData" Click="Clear_AllData_TipShow" FontWeight="Bold" Foreground="{ThemeResource AppDangerBrush}" Content="清空所有数据" MinWidth="128" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel x:Name="other" Spacing="10">
+                                <TextBlock Text="外观" FontSize="16" FontWeight="Bold"/>
+
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <Grid Margin="18,14" MinHeight="42" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Style="{StaticResource SettingIconStyle}" Glyph="&#xE790;" Margin="6 0 0 0"/>
+                                        <StackPanel Grid.Column="1" Margin="0,0,24,0" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="主题设置" Style="{StaticResource SettingTitleStyle}"/>
+                                            <TextBlock Text="选择 WaveTools 的显示主题" Style="{StaticResource SettingDescriptionStyle}"/>
+                                        </StackPanel>
+                                        <ComboBox Grid.Column="2"
+                                              HorizontalAlignment="Right"
+                                              x:Name="themeCombo"
+                                              SelectionChanged="ThemeCombo_SelectionChanged"
+                                              MinWidth="120"
+                                              VerticalAlignment="Center">
+                                            <ComboBoxItem Content="跟随系统"/>
+                                            <ComboBoxItem Content="浅色模式"/>
+                                            <ComboBoxItem Content="深色模式"/>
+                                        </ComboBox>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel x:Name="debug_Mode" Visibility="Collapsed" Spacing="10">
+                                <TextBlock Text="Debug 设置" FontSize="16" FontWeight="Bold"/>
+                                <Border Style="{StaticResource SettingCardBorderStyle}">
+                                    <StackPanel Margin="18" Spacing="10">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button x:Name="debug_Panic" Click="Debug_Panic_Click" Content="Debug_崩溃"/>
+                                            <ToggleButton x:Name="debug_DisableNavBtns" Click="Debug_Disable_NavBtns" Content="禁用导航按钮"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button x:Name="debug_NotificationTest" Click="Debug_Notification_Test" Content="全局通知测试"/>
+                                            <Button x:Name="debug_WaitOverlayManager" Click="Debug_WaitOverlayManager_Test" Content="全局等待测试"/>
+                                        </StackPanel>
+                                        <Button x:Name="debug_ShowDialogTest" Click="Debug_ShowDialog_Test" Content="全局 Dialog 测试" HorizontalAlignment="Left"/>
+                                        <TextBlock x:Name="debug_Message" Text="处于Debug模式，控制台无法关闭" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
             </Grid>
 
+            <Border Grid.Column="2"
+                    CornerRadius="12"
+                    BorderThickness="1"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    VerticalAlignment="Stretch">
+                <Grid Margin="22" RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Spacing="8">
+                        <Border CornerRadius="24" HorizontalAlignment="Left">
+                            <Image Source="ms-appx:///Imgs/Logo_2.jpg" Width="96" Height="96"/>
+                        </Border>
+
+                        <TextBlock Text="关于"
+                                   FontSize="20"
+                                   FontWeight="Bold"/>
+
+                        <TextBlock x:Name="appName"
+                                   Text="WaveTools(鸣潮工具箱)"
+                                   FontSize="14"
+                                   FontWeight="Bold"
+                                   TextWrapping="WrapWholeWords"/>
+
+                        <TextBlock x:Name="appToolName"
+                                   Text="用于《鸣潮》"
+                                   FontSize="12"
+                                   Opacity="0.75"
+                                   TextWrapping="WrapWholeWords"/>
+
+                        <StackPanel Spacing="0">
+                            <TextBlock Text="Created by JamXi"
+                                       FontSize="12"
+                                       Opacity="0.75"
+                                       Margin="0"/>
+
+                            <TextBlock Text="Copyright © JSG-LLC 2017-2026"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Opacity="0.75"
+                                       TextWrapping="WrapWholeWords"
+                                       Margin="0"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Spacing="8">
+                        <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}">
+                            <Hyperlink NavigateUri="https://github.com/JamXi233/WaveTools/issues" UnderlineStyle="None"><Run Text="报告问题"/></Hyperlink>
+                        </TextBlock>
+                        <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}">
+                            <Hyperlink NavigateUri="https://github.com/JamXi233/WaveTools" UnderlineStyle="None"><Run Text="贡献代码"/></Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="3" HorizontalAlignment="Right" Margin="0,0,-8,-8">
+                        <TextBlock x:Name="appVersion" Text="" FontSize="18" FontWeight="Bold" Margin="0,6,0,0" TextWrapping="WrapWholeWords" HorizontalAlignment="Right"/>
+                        <TextBlock x:Name="apiVersion" Text="ArrowAPI Version" FontSize="12" FontWeight="Bold" Foreground="{ThemeResource AppTextSecondaryBrush}" TextWrapping="WrapWholeWords" HorizontalAlignment="Right"/>
+                        <TextBlock x:Name="antiCatVersion" Text="AntiCat Version" FontSize="12" FontWeight="Bold" Foreground="{ThemeResource AppTextSecondaryBrush}" TextWrapping="WrapWholeWords" HorizontalAlignment="Right"/>
+                    </StackPanel>
+
+                </Grid>
+            </Border>
         </Grid>
 
-        <Grid HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12">
-            <StackPanel Orientation="Vertical">
-                <TextBlock x:Name="appVersion" Text="" FontSize="18" FontWeight="Bold" HorizontalAlignment="Right"/>
-                <TextBlock x:Name="apiVersion" Text="" FontSize="12" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Right"/>
-                <TextBlock x:Name="antiCatVersion" Text="" FontSize="12" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Right"/>
-            </StackPanel>
-        </Grid>
+        <TeachingTip x:Name="UpdateTip"
+                     Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}"
+                     CloseButtonContent="关闭">
+            <TeachingTip.IconSource>
+                <SymbolIconSource Symbol="Admin"/>
+            </TeachingTip.IconSource>
+        </TeachingTip>
+
+        <TeachingTip x:Name="TerminalTip"
+                     Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}"
+                     Target="{x:Bind terminalToggle}"
+                     Title="Terminal 模式开启"
+                     Subtitle="软件下次启动会进入控制台模式"
+                     ActionButtonContent="立即重启"
+                     ActionButtonClick="Restart_App"
+                     CloseButtonContent="关闭">
+            <TeachingTip.IconSource>
+                <SymbolIconSource Symbol="Permissions"/>
+            </TeachingTip.IconSource>
+        </TeachingTip>
+
+        <TeachingTip x:Name="ThemeTip"
+                     Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}"
+                     Target="{x:Bind themeCombo}"
+                     Title="主题切换需要重启 WaveTools"
+                     ActionButtonContent="立即重启"
+                     ActionButtonClick="Restart_App"
+                     CloseButtonContent="关闭">
+            <TeachingTip.IconSource>
+                <SymbolIconSource Symbol="Permissions"/>
+            </TeachingTip.IconSource>
+        </TeachingTip>
+
+        <TeachingTip x:Name="ClearAllDataTip"
+                     Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}"
+                     Target="{x:Bind clearAllData}"
+                     Title="确定要清空数据吗？"
+                     ActionButtonClick="ClearAllData"
+                     CloseButtonContent="取消">
+            <TeachingTip.ActionButtonContent>
+                <TextBlock Foreground="{ThemeResource AppDangerBrush}" Text="确认清空" FontWeight="ExtraBold"/>
+            </TeachingTip.ActionButtonContent>
+            <TeachingTip.IconSource>
+                <SymbolIconSource Symbol="Help"/>
+            </TeachingTip.IconSource>
+        </TeachingTip>
 
     </Grid>
-    
+
 </Page>

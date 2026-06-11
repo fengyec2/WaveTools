@@ -291,7 +291,7 @@
                     </DropDownButton>
                 </Grid>
 
-                <StackPanel Height="1" Background="Gray" Width="128" HorizontalAlignment="Left" Margin="0 7 0 0"/>
+                <StackPanel Height="1" Background="{ThemeResource AppSeparatorBrush}" Width="128" HorizontalAlignment="Left" Margin="0 7 0 0"/>
                 
                 <!-- NVIDIA DLSS Setting -->
                 <Grid>
@@ -386,7 +386,7 @@
                     </DropDownButton>
                 </Grid>
 
-                <StackPanel Height="1" Background="Gray" Width="128" HorizontalAlignment="Left" Margin="0 7 0 0"/>
+                <StackPanel Height="1" Background="{ThemeResource AppSeparatorBrush}" Width="128" HorizontalAlignment="Left" Margin="0 7 0 0"/>
 
                 <!-- Intel XeSS Setting -->
                 <Grid>

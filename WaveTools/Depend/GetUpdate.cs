@@ -21,7 +21,6 @@
 using System;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
-using Windows.Storage;
 using System.IO;
 using System.Diagnostics;
 using WaveTools.Depend;
@@ -52,7 +51,6 @@ namespace WaveTools.Depend
             Version currentVersionParsed = new Version(currentVersion);
             try
             {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 var latestReleaseInfo = await _getJSGLatest.GetLatestReleaseInfoAsync("cn.jamsg.WaveTools");
                 Logging.Write("Getting Update Info...", 0);
 
@@ -83,8 +81,7 @@ namespace WaveTools.Depend
 
                 if (Mode == "Depend")
                 {
-                    string userDocumentsFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                    string exePath = Path.Combine(userDocumentsFolderPath, "JSG-LLC", "WaveTools", "Depends", PkgName, "WaveToolsHelper.exe");
+                    string exePath = AppDataController.GetDataPath("Depends", PkgName, "WaveToolsHelper.exe");
 
                     Version installedVersionParsed;
                     if (File.Exists(exePath))

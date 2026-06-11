@@ -84,8 +84,7 @@ namespace WaveTools.Depend
                         ? noticeToken.Children().ToList()
                         : new List<JToken>();
 
-                    string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                    string waveToolsFolderPath = Path.Combine(documentsPath, "JSG-LLC", "WaveTools", "Posts");
+                    string waveToolsFolderPath = AppDataController.GetDataPath("Posts");
 
                     Directory.CreateDirectory(waveToolsFolderPath);
 

@@ -34,7 +34,7 @@
                     <TextBlock Text="依照您个人喜好选择主题" FontSize="18" HorizontalAlignment="Right"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Height="200" Width="1" Background="Gray" Opacity="0.5" Margin="24 0"/>
+                <StackPanel Grid.Column="1" Height="200" Width="1" Background="{ThemeResource AppSeparatorBrush}" Opacity="0.5" Margin="24 0"/>
 
                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center" Width="280">

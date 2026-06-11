@@ -23,7 +23,6 @@ using Microsoft.UI.Xaml.Controls;
 using WaveTools.Depend;
 using System.Diagnostics;
 using System;
-using Windows.Storage;
 using System.IO;
 using System.IO.Compression;
 using Microsoft.UI.Xaml.Media;
@@ -43,13 +42,12 @@ namespace WaveTools.Views.FirstRunViews
         {
             this.InitializeComponent();
             Logging.Write("Switch to FirstRunGetDepend", 0);
-            AppDataController.SetFirstRunStatus(4);
+            AppDataController.SetFirstRunStatus(5);
             OnGetDependLatestReleaseInfo();
         }
 
         //依赖下载开始
 
-        private const string FileFolder = "\\JSG-LLC\\WaveTools\\Depends";
         private const string ZipFileName = "WaveToolsHelper.zip";
         private const string ExtractedFolder = "WaveToolsHelper";
 
@@ -57,8 +55,9 @@ namespace WaveTools.Views.FirstRunViews
         {
             depend_Progress_Text.Text = "正在下载...";
             _getNetData = new GetNetData();
-            string userDocumentsFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string localFilePath = Path.Combine(userDocumentsFolderPath + FileFolder, ZipFileName);
+            string dependsFolderPath = AppDataController.GetDataPath("Depends");
+            Directory.CreateDirectory(dependsFolderPath);
+            string localFilePath = Path.Combine(dependsFolderPath, ZipFileName);
             Trace.WriteLine(fileUrl);
             ToggleDependGridVisibility(false);
             depend_Download.IsEnabled = false;
@@ -76,7 +75,7 @@ namespace WaveTools.Views.FirstRunViews
 
             if (downloadResult)
             {
-                string extractionPath = Path.Combine(userDocumentsFolderPath + FileFolder, ExtractedFolder);
+                string extractionPath = Path.Combine(dependsFolderPath, ExtractedFolder);
                 if (File.Exists(extractionPath + "\\WaveToolsHelper.exe"))
                 {
                     mainWindow?.KillFirstUI();
@@ -88,7 +87,7 @@ namespace WaveTools.Views.FirstRunViews
                 }
                 else 
                 {
-                    Trace.WriteLine(userDocumentsFolderPath);
+                    Trace.WriteLine(AppDataController.DataRootPath);
                     Trace.WriteLine(extractionPath);
                     ZipFile.ExtractToDirectory(localFilePath, extractionPath);
                     Frame parentFrame = GetParentFrame(this);
@@ -120,9 +119,9 @@ namespace WaveTools.Views.FirstRunViews
             var dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
             try
             {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 var latestReleaseInfo = await _getJSGLatest.GetLatestReleaseInfoAsync("cn.jamsg.WaveToolshelper");
-                switch (localSettings.Values["Config_UpdateService"])
+                int updateService = AppDataController.GetUpdateService();
+                switch (updateService)
                 {
                     case 0:
                         latestReleaseInfo = await _getGithubLatest.GetLatestDependReleaseInfoAsync("JamXi233", "Releases", "WaveToolsHelper");
@@ -131,7 +130,7 @@ namespace WaveTools.Views.FirstRunViews
                         latestReleaseInfo = await _getJSGLatest.GetLatestReleaseInfoAsync("cn.jamsg.WaveToolshelper");
                         break;
                     default:
-                        throw new InvalidOperationException($"Invalid update service value: {localSettings.Values["Config_UpdateService"]}");
+                        throw new InvalidOperationException($"Invalid update service value: {updateService}");
                 }
 
                 fileUrl = latestReleaseInfo.DownloadUrl;

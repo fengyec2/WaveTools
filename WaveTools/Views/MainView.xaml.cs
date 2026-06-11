@@ -29,7 +29,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Net.Http;
 using System.Collections.ObjectModel;
-using Microsoft.UI.Xaml.Input;
 using WaveTools.Views.NotifyViews;
 using System.IO;
 using static WaveTools.App;
@@ -48,10 +47,8 @@ namespace WaveTools.Views
     public class SlideshowItem { public string url { get; set; } public string jumpUrl { get; set; } public string md5 { get; set; } public string carouselNotes { get; set; } }
     public class InformationRoot { public Guidance guidance { get; set; } public List<SlideshowItem> slideshow { get; set; } }
     public static class NotificationDataHolder { public static List<ContentItem> ActivityContents { get; set; } public static List<ContentItem> NoticeContents { get; set; } public static List<ContentItem> NewsContents { get; set; } }
-
     public sealed partial class MainView : Page
     {
-        // Class to hold data for navigation to the gallery view
         public class GalleryNavigationData
         {
             public ObservableCollection<string> Pictures { get; set; }
@@ -61,27 +58,53 @@ namespace WaveTools.Views
         private DispatcherQueue dispatcherQueue;
         private DispatcherQueueTimer dispatcherTimer_Game;
         private DispatcherQueueTimer dispatcherTimer_Launcher;
+
         private static readonly HttpClient httpClient = new HttpClient(new HttpClientHandler()
         {
             AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
         });
+
         private readonly string cachePath;
 
         public ObservableCollection<string> Pictures { get; } = new ObservableCollection<string>();
-        List<String> list = new List<String>();
-        GetNotify getNotify = new GetNotify();
+        private readonly List<string> list = new List<string>();
+        private static bool homeLoadedInCurrentProcess;
+        private static bool updateCheckedInCurrentProcess;
+        private static string cachedBackgroundVideoPath;
+        private static string cachedSloganImagePath;
+        private static List<string> cachedPicturePaths = new List<string>();
+        private static List<string> cachedJumpUrls = new List<string>();
+        private static List<ContentItem> cachedActivityContents = new List<ContentItem>();
+        private static List<ContentItem> cachedNoticeContents = new List<ContentItem>();
+        private static List<ContentItem> cachedNewsContents = new List<ContentItem>();
+        public static WeakReference<MainView> CurrentInstance { get; private set; }
+        private static bool isPreparingDataRootMove;
+        private bool isPageUnloaded;
+
+        private bool CanTouchUi()
+        {
+            return !isPageUnloaded && !isPreparingDataRootMove;
+        }
+
+        private async Task WaitForCachePreparationAsync()
+        {
+            while (isPreparingDataRootMove && !isPageUnloaded)
+            {
+                await Task.Delay(50);
+            }
+        }
 
         public MainView()
         {
-            this.InitializeComponent();
+            InitializeComponent();
             Logging.Write("Switch to MainView", 0);
 
-            cachePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), @"JSG-LLC\WaveTools\Cache\");
+            cachePath = AppDataController.GetDataPath("Cache") + Path.DirectorySeparatorChar;
             Directory.CreateDirectory(cachePath);
             Logging.Write($"Cache path set to: {cachePath}", 0);
 
             Loaded += MainView_Loaded;
-            this.Unloaded += OnUnloaded;
+            Unloaded += OnUnloaded;
 
             InitializeDispatcherQueue();
             InitializeTimers();
@@ -89,27 +112,184 @@ namespace WaveTools.Views
 
         private async void MainView_Loaded(object sender, RoutedEventArgs e)
         {
+            isPageUnloaded = false;
+            CurrentInstance = new WeakReference<MainView>(this);
+
             Logging.Write("MainView loaded", 0);
+
             if (BackgroundMediaPlayer.MediaPlayer != null)
             {
                 BackgroundMediaPlayer.MediaPlayer.MediaOpened += MediaPlayer_MediaOpened;
             }
 
+            if (isPreparingDataRootMove)
+            {
+                await WaitForCachePreparationAsync();
+                if (isPageUnloaded)
+                {
+                    return;
+                }
+            }
+
             LoadStartGameGrid();
+
+            if (TryApplyHomeCache())
+            {
+                Logging.Write("MainView home cache applied, skip network loading", 0);
+                return;
+            }
+
+            await LoadHomeForCurrentProcessAsync();
+        }
+
+        private async Task LoadHomeForCurrentProcessAsync()
+        {
+            if (!CanTouchUi())
+            {
+                return;
+            }
+
+            loadRing.Visibility = Visibility.Visible;
+            loadErr.Visibility = Visibility.Collapsed;
+
             try
             {
-                await getNotify.Get();
-                Notify_Grid.Visibility = Visibility.Visible;
-                Logging.Write("Notifications loaded successfully", 0);
+                await LoadBackgroundAsync();
+                if (!CanTouchUi())
+                {
+                    return;
+                }
+
+                await LoadInformationAsync();
+                if (!CanTouchUi())
+                {
+                    return;
+                }
+
+                homeLoadedInCurrentProcess = true;
+
+                loadRing.Visibility = Visibility.Collapsed;
+                loadErr.Visibility = Visibility.Collapsed;
+
+                Logging.Write("MainView home loaded and cached for current process", 0);
             }
             catch (Exception ex)
             {
-                Logging.Write("Failed to load notifications: " + ex.Message, 1);
+                if (!CanTouchUi())
+                {
+                    return;
+                }
+
+                Logging.Write("Failed to load MainView home: " + ex.Message, 2);
+
                 loadRing.Visibility = Visibility.Collapsed;
-                loadErr.Visibility = Visibility.Visible;
+
+                if (!TryApplyHomeCache())
+                {
+                    loadErr.Visibility = Visibility.Visible;
+                }
             }
-            await LoadBackgroundAsync();
-            await LoadInformationAsync();
+        }
+
+        private bool TryApplyHomeCache()
+        {
+            if (isPreparingDataRootMove)
+            {
+                return true;
+            }
+
+            if (!homeLoadedInCurrentProcess)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(cachedBackgroundVideoPath) ||
+                string.IsNullOrEmpty(cachedSloganImagePath) ||
+                !File.Exists(cachedBackgroundVideoPath) ||
+                !File.Exists(cachedSloganImagePath))
+            {
+                homeLoadedInCurrentProcess = false;
+                return false;
+            }
+
+            try
+            {
+                ApplyBackgroundFromCache(cachedBackgroundVideoPath, cachedSloganImagePath);
+                ApplyInformationFromCache();
+
+                loadRing.Visibility = Visibility.Collapsed;
+                loadErr.Visibility = Visibility.Collapsed;
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logging.Write("Failed to apply MainView cache: " + ex.Message, 2);
+                return false;
+            }
+        }
+
+        private void ApplyBackgroundFromCache(string backgroundVideoPath, string sloganImagePath)
+        {
+            if (!CanTouchUi())
+            {
+                return;
+            }
+
+            try
+            {
+                BackgroundMediaPlayer.Source = MediaSource.CreateFromUri(new Uri(backgroundVideoPath));
+                BackgroundMediaPlayer.MediaPlayer.IsLoopingEnabled = true;
+                Logging.Write($"Background video source set from cache: {backgroundVideoPath}", 0);
+            }
+            catch (Exception ex)
+            {
+                Logging.Write("Error setting cached background video: " + ex.Message, 2);
+            }
+
+            try
+            {
+                IconImageBrush.ImageSource = new BitmapImage(new Uri(sloganImagePath));
+                Logging.Write($"Slogan image source set from cache: {sloganImagePath}", 0);
+            }
+            catch (Exception ex)
+            {
+                Logging.Write("Error setting cached slogan image: " + ex.Message, 1);
+            }
+        }
+
+        private void ApplyInformationFromCache()
+        {
+            if (!CanTouchUi())
+            {
+                return;
+            }
+
+            Pictures.Clear();
+            list.Clear();
+
+            foreach (string picturePath in cachedPicturePaths)
+            {
+                if (File.Exists(picturePath))
+                {
+                    Pictures.Add(picturePath);
+                }
+            }
+
+            foreach (string jumpUrl in cachedJumpUrls)
+            {
+                list.Add(jumpUrl);
+            }
+
+            NotificationDataHolder.ActivityContents = cachedActivityContents;
+            NotificationDataHolder.NoticeContents = cachedNoticeContents;
+            NotificationDataHolder.NewsContents = cachedNewsContents;
+
+            NotifyLoad.Visibility = Visibility.Collapsed;
+            Notify_Grid.Visibility = Visibility.Visible;
+            NotifyNav.Visibility = Visibility.Visible;
+
+            SelectFirstAvailableNotifyItem();
         }
 
         private void InitializeDispatcherQueue()
@@ -121,6 +301,7 @@ namespace WaveTools.Views
         {
             dispatcherTimer_Game = CreateTimer(TimeSpan.FromSeconds(0.2), CheckProcess_Game);
             dispatcherTimer_Game.Start();
+
             dispatcherTimer_Launcher = CreateTimer(TimeSpan.FromSeconds(0.2), CheckProcess_Launcher);
             dispatcherTimer_Launcher.Start();
         }
@@ -140,6 +321,7 @@ namespace WaveTools.Views
             {
                 string GamePath = AppDataController.GetGamePath();
                 Logging.Write("GamePath: " + GamePath, 0);
+
                 if (!string.IsNullOrEmpty(GamePath) && GamePath.Contains("Null"))
                 {
                     UpdateUIElementsVisibility(0);
@@ -161,7 +343,9 @@ namespace WaveTools.Views
             {
                 startGame.IsEnabled = false;
                 startLauncher.IsEnabled = false;
+
                 StartGame_Grid.Visibility = Visibility.Collapsed;
+
                 selectGame.IsEnabled = true;
                 SelectGame_Grid.Visibility = Visibility.Visible;
             }
@@ -169,7 +353,9 @@ namespace WaveTools.Views
             {
                 startGame.IsEnabled = true;
                 startLauncher.IsEnabled = true;
+
                 StartGame_Grid.Visibility = Visibility.Visible;
+
                 selectGame.IsEnabled = false;
                 SelectGame_Grid.Visibility = Visibility.Collapsed;
             }
@@ -177,123 +363,147 @@ namespace WaveTools.Views
 
         private async Task LoadBackgroundAsync()
         {
-            Logging.Write("Loading background with caching", 0);
-            try
+            Logging.Write("Loading background with file cache", 0);
+
+            string firstApiUrl = "https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/launcher/10003_Y8xXrXk65DqFHEDgApn3cpK5lfczpFx5/G152/index.json";
+            JObject firstResponse = await FetchJsonAsync(firstApiUrl);
+
+            string backgroundCode = firstResponse["functionCode"]?["background"]?.ToString();
+            if (string.IsNullOrEmpty(backgroundCode))
             {
-                string firstApiUrl = "https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/launcher/10003_Y8xXrXk65DqFHEDgApn3cpK5lfczpFx5/G152/index.json";
-                JObject firstResponse = await FetchJsonAsync(firstApiUrl);
-                string backgroundCode = firstResponse["functionCode"]["background"]?.ToString();
-                if (string.IsNullOrEmpty(backgroundCode)) throw new Exception("Background code not found.");
-
-                long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                string secondApiUrl = $"https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/10003_Y8xXrXk65DqFHEDgApn3cpK5lfczpFx5/G152/background/{backgroundCode}/zh-Hans.json?_t={timestamp}";
-                JObject secondResponse = await FetchJsonAsync(secondApiUrl);
-
-                string backgroundVideoUrl = secondResponse["backgroundFile"]?.ToString();
-                string sloganImageUrl = secondResponse["slogan"]?.ToString();
-                if (string.IsNullOrEmpty(backgroundVideoUrl) || string.IsNullOrEmpty(sloganImageUrl)) throw new Exception("Background video or slogan URL not found.");
-
-                string videoFileName = Path.GetFileName(new Uri(backgroundVideoUrl).LocalPath);
-                string sloganFileName = Path.GetFileName(new Uri(sloganImageUrl).LocalPath);
-
-                string localVideoPath = Path.Combine(cachePath, videoFileName);
-                string localSloganPath = Path.Combine(cachePath, sloganFileName);
-
-                if (!File.Exists(localVideoPath)) await DownloadFileAsync(backgroundVideoUrl, localVideoPath);
-                else Logging.Write($"Video found in cache: {localVideoPath}", 0);
-
-                if (!File.Exists(localSloganPath)) await DownloadFileAsync(sloganImageUrl, localSloganPath);
-                else Logging.Write($"Slogan found in cache: {localSloganPath}", 0);
-
-                await LoadAdvertisementDataAsync(localVideoPath, localSloganPath);
+                throw new Exception("Background code not found.");
             }
-            catch (Exception ex)
+
+            long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            string secondApiUrl = $"https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/10003_Y8xXrXk65DqFHEDgApn3cpK5lfczpFx5/G152/background/{backgroundCode}/zh-Hans.json?_t={timestamp}";
+            JObject secondResponse = await FetchJsonAsync(secondApiUrl);
+
+            string backgroundVideoUrl = secondResponse["backgroundFile"]?.ToString();
+            string sloganImageUrl = secondResponse["slogan"]?.ToString();
+
+            if (string.IsNullOrEmpty(backgroundVideoUrl) || string.IsNullOrEmpty(sloganImageUrl))
             {
-                Logging.Write("Failed to load background: " + ex.Message, 2);
-                loadRing.Visibility = Visibility.Collapsed;
-                loadErr.Visibility = Visibility.Visible;
+                throw new Exception("Background video or slogan URL not found.");
             }
+
+            string videoFileName = Path.GetFileName(new Uri(backgroundVideoUrl).LocalPath);
+            string sloganFileName = Path.GetFileName(new Uri(sloganImageUrl).LocalPath);
+
+            string localVideoPath = Path.Combine(cachePath, videoFileName);
+            string localSloganPath = Path.Combine(cachePath, sloganFileName);
+
+            if (!File.Exists(localVideoPath))
+            {
+                await DownloadFileAsync(backgroundVideoUrl, localVideoPath);
+            }
+            else
+            {
+                Logging.Write($"Video found in file cache: {localVideoPath}", 0);
+            }
+
+            if (!File.Exists(localSloganPath))
+            {
+                await DownloadFileAsync(sloganImageUrl, localSloganPath);
+            }
+            else
+            {
+                Logging.Write($"Slogan found in file cache: {localSloganPath}", 0);
+            }
+
+            cachedBackgroundVideoPath = localVideoPath;
+            cachedSloganImagePath = localSloganPath;
+
+            await LoadAdvertisementDataAsync(localVideoPath, localSloganPath);
         }
 
         private async Task LoadAdvertisementDataAsync(string backgroundVideoPath, string sloganImagePath)
         {
-            Logging.Write("Loading advertisement data from local cache", 0);
-            try
-            {
-                BackgroundMediaPlayer.Source = MediaSource.CreateFromUri(new Uri(backgroundVideoPath));
-                BackgroundMediaPlayer.MediaPlayer.IsLoopingEnabled = true;
-                Logging.Write($"Background video source set from: {backgroundVideoPath}", 0);
-            }
-            catch (Exception e)
-            {
-                Logging.Write("Error setting background video source: " + e.Message, 2);
-            }
-            try
-            {
-                BitmapImage iconImage = new BitmapImage(new Uri(sloganImagePath));
-                IconImageBrush.ImageSource = iconImage;
-                Logging.Write($"Slogan image source set from: {sloganImagePath}", 0);
-            }
-            catch (Exception e)
-            {
-                Logging.Write("Error setting button icon: " + e.Message, 1);
-            }
+            ApplyBackgroundFromCache(backgroundVideoPath, sloganImagePath);
 
-            var result = await GetUpdate.GetDependUpdate();
-            if (result.Status == 1) NotificationManager.RaiseNotification("更新提示", "依赖包需要更新\n请尽快到[设置-检查依赖更新]进行更新", InfoBarSeverity.Warning);
+            if (!updateCheckedInCurrentProcess)
+            {
+                updateCheckedInCurrentProcess = true;
 
-            result = await GetUpdate.GetWaveToolsUpdate();
-            if (result.Status == 1) NotificationManager.RaiseNotification("更新提示", "WaveTools有更新\n可到[设置-检查更新]进行更新", InfoBarSeverity.Warning);
+                var result = await GetUpdate.GetDependUpdate();
+                if (result.Status == 1)
+                {
+                    NotificationManager.RaiseNotification("更新提示", "依赖包需要更新\n请尽快到[设置-检查依赖更新]进行更新", InfoBarSeverity.Warning);
+                }
 
-            loadRing.Visibility = Visibility.Collapsed;
+                result = await GetUpdate.GetWaveToolsUpdate();
+                if (result.Status == 1)
+                {
+                    NotificationManager.RaiseNotification("更新提示", "WaveTools有更新\n可到[设置-检查更新]进行更新", InfoBarSeverity.Warning);
+                }
+            }
         }
 
         private async Task LoadInformationAsync()
         {
-            Logging.Write("Loading all information from new API with caching", 0);
-            try
+            Logging.Write("Loading information with file cache", 0);
+
+            long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            string apiUrl = $"https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/10003_Y8xXrXk65DqFHEDgApn3cpK5lfczpFx5/G152/information/zh-Hans.json?_t={timestamp}";
+
+            string jsonResponse = await FetchStringAsync(apiUrl);
+            var informationData = JsonConvert.DeserializeObject<InformationRoot>(jsonResponse);
+
+            if (informationData?.slideshow != null)
             {
-                long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                string apiUrl = $"https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/10003_Y8xXrXk65DqFHEDgApn3cpK5lfczpFx5/G152/information/zh-Hans.json?_t={timestamp}";
-
-                string jsonResponse = await FetchStringAsync(apiUrl);
-                var informationData = JsonConvert.DeserializeObject<InformationRoot>(jsonResponse);
-
-                if (informationData?.slideshow != null)
-                {
-                    await PopulatePicturesAsync(informationData.slideshow);
-                    Logging.Write("Pictures populated successfully.", 0);
-                }
-
-                if (informationData?.guidance != null)
-                {
-                    PopulateNotifications(informationData.guidance);
-                    Logging.Write("Notifications populated successfully.", 0);
-                }
+                await PopulatePicturesAsync(informationData.slideshow);
+                cachedPicturePaths = new List<string>(Pictures);
+                cachedJumpUrls = new List<string>(list);
+                Logging.Write("Pictures populated and cached successfully.", 0);
             }
-            catch (Exception ex)
+
+            if (informationData?.guidance != null)
             {
-                Logging.Write("Failed to load information from new API: " + ex.Message, 2);
-                Notify_Grid.Visibility = Visibility.Collapsed;
-                loadRing.Visibility = Visibility.Collapsed;
-                loadErr.Visibility = Visibility.Visible;
+                PopulateNotifications(informationData.guidance);
+                Logging.Write("Notifications populated and cached successfully.", 0);
             }
         }
 
         public async Task PopulatePicturesAsync(List<SlideshowItem> slideshows)
         {
-            Logging.Write("Populating pictures from slideshow data with caching", 0);
+            if (!CanTouchUi())
+            {
+                return;
+            }
+
+            Logging.Write("Populating pictures from slideshow data with file cache", 0);
+
             Pictures.Clear();
             list.Clear();
+
             foreach (var slideshow in slideshows)
             {
                 try
                 {
+                    if (string.IsNullOrEmpty(slideshow.url))
+                    {
+                        continue;
+                    }
+
                     string imageFileName = Path.GetFileName(new Uri(slideshow.url).LocalPath);
                     string localImagePath = Path.Combine(cachePath, imageFileName);
 
-                    if (!File.Exists(localImagePath)) await DownloadFileAsync(slideshow.url, localImagePath);
-                    else Logging.Write($"Slideshow image found in cache: {localImagePath}", 0);
+                    if (!File.Exists(localImagePath))
+                    {
+                        await DownloadFileAsync(slideshow.url, localImagePath);
+                        if (!CanTouchUi())
+                        {
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        Logging.Write($"Slideshow image found in file cache: {localImagePath}", 0);
+                    }
+
+                    if (!CanTouchUi())
+                    {
+                        return;
+                    }
 
                     Pictures.Add(localImagePath);
                     list.Add(slideshow.jumpUrl);
@@ -307,14 +517,28 @@ namespace WaveTools.Views
 
         public void PopulateNotifications(Guidance guidance)
         {
-            NotificationDataHolder.ActivityContents = guidance.activity?.contents;
-            NotificationDataHolder.NoticeContents = guidance.notice?.contents;
-            NotificationDataHolder.NewsContents = guidance.news?.contents;
+            if (!CanTouchUi())
+            {
+                return;
+            }
+
+            cachedActivityContents = guidance.activity?.contents ?? new List<ContentItem>();
+            cachedNoticeContents = guidance.notice?.contents ?? new List<ContentItem>();
+            cachedNewsContents = guidance.news?.contents ?? new List<ContentItem>();
+
+            NotificationDataHolder.ActivityContents = cachedActivityContents;
+            NotificationDataHolder.NoticeContents = cachedNoticeContents;
+            NotificationDataHolder.NewsContents = cachedNewsContents;
+
             NotifyLoad.Visibility = Visibility.Collapsed;
             Notify_Grid.Visibility = Visibility.Visible;
             NotifyNav.Visibility = Visibility.Visible;
 
-            // This loop will now automatically select the "Gallery" tab first if it's available.
+            SelectFirstAvailableNotifyItem();
+        }
+
+        private void SelectFirstAvailableNotifyItem()
+        {
             foreach (var menuItem in NotifyNav.Items)
             {
                 if (menuItem is SelectorBarItem item && item.IsEnabled)
@@ -341,23 +565,36 @@ namespace WaveTools.Views
         private async Task DownloadFileAsync(string url, string destinationPath)
         {
             Logging.Write($"Downloading file from {url} to {destinationPath}", 0);
+
+            string tempPath = destinationPath + ".tmp";
+
             try
             {
-                string tempPath = destinationPath + ".tmp";
                 using (HttpResponseMessage response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
                 {
                     response.EnsureSuccessStatusCode();
-                    using (Stream contentStream = await response.Content.ReadAsStreamAsync(),
-                                fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
+
+                    using (Stream contentStream = await response.Content.ReadAsStreamAsync())
+                    using (FileStream fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
                     {
                         await contentStream.CopyToAsync(fileStream);
                     }
                 }
+
                 File.Move(tempPath, destinationPath, true);
                 Logging.Write($"File downloaded successfully: {destinationPath}", 0);
             }
             catch (Exception ex)
             {
+                try
+                {
+                    if (File.Exists(tempPath))
+                    {
+                        File.Delete(tempPath);
+                    }
+                }
+                catch { }
+
                 Logging.Write($"Failed to download file: {ex.Message}", 2);
                 throw;
             }
@@ -365,8 +602,18 @@ namespace WaveTools.Views
 
         private void MediaPlayer_MediaOpened(Windows.Media.Playback.MediaPlayer sender, object args)
         {
+            if (!CanTouchUi())
+            {
+                return;
+            }
+
             dispatcherQueue.TryEnqueue(() =>
             {
+                if (!CanTouchUi())
+                {
+                    return;
+                }
+
                 Logging.Write("Background media opened, starting fade animation.", 0);
                 StartFadeAnimation(BackgroundMediaPlayer, 0, 1, TimeSpan.FromSeconds(0.5));
                 StartFadeAnimation(OpenUrlButton, 0, 1, TimeSpan.FromSeconds(0.5));
@@ -375,9 +622,22 @@ namespace WaveTools.Views
 
         private void StartFadeAnimation(FrameworkElement target, double from, double to, TimeSpan duration)
         {
-            DoubleAnimation opacityAnimation = new DoubleAnimation { From = from, To = to, Duration = duration, EnableDependentAnimation = true };
+            if (!CanTouchUi())
+            {
+                return;
+            }
+
+            DoubleAnimation opacityAnimation = new DoubleAnimation
+            {
+                From = from,
+                To = to,
+                Duration = duration,
+                EnableDependentAnimation = true
+            };
+
             Storyboard.SetTarget(opacityAnimation, target);
             Storyboard.SetTargetProperty(opacityAnimation, "Opacity");
+
             Storyboard storyboard = new Storyboard();
             storyboard.Children.Add(opacityAnimation);
             storyboard.Begin();
@@ -388,18 +648,26 @@ namespace WaveTools.Views
             if (sender.SelectedItem is SelectorBarItem selectedItem && selectedItem.Tag is string tag)
             {
                 var transitionInfo = new SuppressNavigationTransitionInfo();
+
                 switch (tag)
                 {
                     case "Notify_Gallery":
-                        var navData = new GalleryNavigationData { Pictures = this.Pictures, JumpUrls = this.list };
+                        var navData = new GalleryNavigationData
+                        {
+                            Pictures = Pictures,
+                            JumpUrls = list
+                        };
                         NotifyFrame.Navigate(typeof(NotifyGalleryView), navData, transitionInfo);
                         break;
+
                     case "Notify_Notification":
                         NotifyFrame.Navigate(typeof(NotifyNotificationView), null, transitionInfo);
                         break;
+
                     case "Notify_Message":
                         NotifyFrame.Navigate(typeof(NotifyMessageView), null, transitionInfo);
                         break;
+
                     case "Notify_Announce":
                         NotifyFrame.Navigate(typeof(NotifyAnnounceView), null, transitionInfo);
                         break;
@@ -410,6 +678,7 @@ namespace WaveTools.Views
         private async void SelectGame_Click(object sender, RoutedEventArgs e)
         {
             string filePath = await CommonHelpers.FileHelpers.OpenFile(".exe");
+
             if (filePath != null && filePath.Contains("Wuthering Waves.exe"))
             {
                 AppDataController.SetGamePath(filePath);
@@ -417,16 +686,27 @@ namespace WaveTools.Views
             }
             else
             {
-                NotificationManager.RaiseNotification("游戏选择无效", "选择正确的Wuthering Waves.exe\n通常位于[游戏根目录\\Wuthering Waves Game\\Wuthering Waves.exe]", InfoBarSeverity.Error);
+                NotificationManager.RaiseNotification(
+                    "游戏选择无效",
+                    "选择正确的Wuthering Waves.exe\n通常位于[游戏根目录\\Wuthering Waves Game\\Wuthering Waves.exe]",
+                    InfoBarSeverity.Error);
             }
         }
 
-        private void StartGame_Click(object sender, RoutedEventArgs e) { new GameStartUtil().StartGame(); }
-        private void StartLauncher_Click(object sender, RoutedEventArgs e) { new GameStartUtil().StartLauncher(); }
+        private void StartGame_Click(object sender, RoutedEventArgs e)
+        {
+            new GameStartUtil().StartGame();
+        }
+
+        private void StartLauncher_Click(object sender, RoutedEventArgs e)
+        {
+            new GameStartUtil().StartLauncher();
+        }
 
         private void CheckProcess_Game(DispatcherQueueTimer timer, object e)
         {
             bool isRunning = Process.GetProcessesByName("Wuthering Waves").Length > 0;
+
             startGame.Visibility = isRunning ? Visibility.Collapsed : Visibility.Visible;
             gameRunning.Visibility = isRunning ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -434,24 +714,141 @@ namespace WaveTools.Views
         private void CheckProcess_Launcher(DispatcherQueueTimer timer, object e)
         {
             bool isRunning = Process.GetProcessesByName("launcher").Length > 0;
+
             startLauncher.Visibility = isRunning ? Visibility.Collapsed : Visibility.Visible;
             launcherRunning.Visibility = isRunning ? Visibility.Visible : Visibility.Collapsed;
         }
 
+        public static async Task PrepareCacheForDataRootMoveAsync()
+        {
+            isPreparingDataRootMove = true;
+
+            try
+            {
+                if (CurrentInstance != null && CurrentInstance.TryGetTarget(out MainView mainView))
+                {
+                    if (mainView.dispatcherQueue != null)
+                    {
+                        TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
+
+                        bool queued = mainView.dispatcherQueue.TryEnqueue(() =>
+                        {
+                            try
+                            {
+                                mainView.ReleaseCacheResourcesForDataRootMove();
+                                tcs.TrySetResult(true);
+                            }
+                            catch (Exception ex)
+                            {
+                                Logging.Write($"Prepare cache for data root move failed: {ex.Message}", 2);
+                                tcs.TrySetResult(false);
+                            }
+                        });
+
+                        if (queued)
+                        {
+                            await tcs.Task;
+                        }
+                    }
+                    else
+                    {
+                        mainView.ReleaseCacheResourcesForDataRootMove();
+                    }
+                }
+
+                homeLoadedInCurrentProcess = false;
+                cachedBackgroundVideoPath = null;
+                cachedSloganImagePath = null;
+                cachedPicturePaths.Clear();
+                cachedJumpUrls.Clear();
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                await Task.Delay(800);
+            }
+            finally
+            {
+                isPreparingDataRootMove = false;
+            }
+        }
+
+        private void ReleaseCacheResourcesForDataRootMove()
+        {
+            try
+            {
+                Logging.Write("Releasing MainView cache resources for data root move", 0);
+
+                try
+                {
+                    if (BackgroundMediaPlayer.MediaPlayer != null)
+                    {
+                        BackgroundMediaPlayer.MediaPlayer.MediaOpened -= MediaPlayer_MediaOpened;
+                        BackgroundMediaPlayer.MediaPlayer.Pause();
+                    }
+
+                    BackgroundMediaPlayer.AutoPlay = false;
+                    BackgroundMediaPlayer.Source = null;
+                }
+                catch (Exception ex)
+                {
+                    Logging.Write($"Release background media failed: {ex.Message}", 1);
+                }
+
+                try
+                {
+                    IconImageBrush.ImageSource = null;
+                }
+                catch (Exception ex)
+                {
+                    Logging.Write($"Release slogan image failed: {ex.Message}", 1);
+                }
+
+                try
+                {
+                    NotifyFrame.Content = null;
+                }
+                catch (Exception ex)
+                {
+                    Logging.Write($"Release notify frame failed: {ex.Message}", 1);
+                }
+
+                try
+                {
+                    Pictures.Clear();
+                    list.Clear();
+                }
+                catch (Exception ex)
+                {
+                    Logging.Write($"Clear home picture collections failed: {ex.Message}", 1);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.Write($"ReleaseCacheResourcesForDataRootMove failed: {ex.Message}", 2);
+            }
+        }
+
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
+            isPageUnloaded = true;
+
+
             if (dispatcherTimer_Game != null)
             {
                 dispatcherTimer_Game.Stop();
                 dispatcherTimer_Game.Tick -= CheckProcess_Game;
                 dispatcherTimer_Game = null;
             }
+
             if (dispatcherTimer_Launcher != null)
             {
                 dispatcherTimer_Launcher.Stop();
                 dispatcherTimer_Launcher.Tick -= CheckProcess_Launcher;
                 dispatcherTimer_Launcher = null;
             }
+
             if (BackgroundMediaPlayer.MediaPlayer != null)
             {
                 BackgroundMediaPlayer.MediaPlayer.MediaOpened -= MediaPlayer_MediaOpened;

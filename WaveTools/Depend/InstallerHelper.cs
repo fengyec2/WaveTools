@@ -30,8 +30,8 @@ namespace WaveTools.Depend
 {
     public class InstallerHelper
     {
-        private static readonly string BaseInstallerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "JSG-LLC", "WaveTools", "Installer");
-        private static string InstallerFileName = "WaveToolsInstaller.exe"; 
+        private static readonly string BaseInstallerPath = AppDataController.GetDataPath("Installer");
+        private static string InstallerFileName = "WaveToolsInstaller.exe";
         private static string InstallerFullPath = Path.Combine(BaseInstallerPath, InstallerFileName);
         private static readonly string InstallerInfoUrl = "https://api.jamsg.cn/release/getversion?package=cn.jamsg.WaveToolsinstaller";
 

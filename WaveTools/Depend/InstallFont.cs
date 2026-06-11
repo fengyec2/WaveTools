@@ -39,7 +39,7 @@ namespace WaveTools.Depend
 
         public static async Task<int> InstallSegoeFluentFontAsync(IProgress<double> progress)
         {
-            string updateFileFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "JSG-LLC", "Fonts");
+            string updateFileFolder = AppDataController.GetDataPath("Fonts");
             string updateFileName = "SegoeFluentIcons.zip";
             string localFilePath = Path.Combine(updateFileFolder, updateFileName);
             string fontName = "Segoe Fluent Icons.ttf";

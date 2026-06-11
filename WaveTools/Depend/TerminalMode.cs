@@ -24,8 +24,8 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Windows.Storage.Pickers;
 using Windows.Storage;
+using Windows.Storage.Pickers;
 using System.IO;
 using WaveTools.Depend;
 
@@ -50,7 +50,6 @@ namespace WaveTools.Depend
         private const int SW_SHOW = 5;
 
         private Window m_window;
-        private ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
 
         public static void ShowConsole()
         {
@@ -82,19 +81,21 @@ namespace WaveTools.Depend
             return (style & WS_VISIBLE) != 0;
         }
 
-        public async Task<bool> Init(int Mode = 0, int SafeMode = 0, String PanicMessage = "Null",String OtherMessage = null)
+        public async Task<bool> Init(int Mode = 0, int SafeMode = 0, String PanicMessage = "Null", String OtherMessage = null)
         {
             var currentProcess = Process.GetCurrentProcess();
             var hWnd = currentProcess.MainWindowHandle;
             Console.Title = "WaveTools 𝑻𝒆𝒓𝒎𝒊𝒏𝒂𝒍";
             Console.Clear();
-            if (SafeMode == 0) { 
+            if (SafeMode == 0)
+            {
                 if (Mode == 1)
                 {
                     var list = new[] { "选择游戏路径", "抽卡分析", "设置", "[red]退出Terminal模式[/]", "[bold red]退出WaveTools[/]", };
-                    if (AppDataController.GetGamePath != null)
+                    string currentGamePath = AppDataController.GetGamePath();
+                    if (!string.IsNullOrEmpty(currentGamePath))
                     {
-                        var value = localSettings.Values["Config_GamePath"] as string;
+                        var value = currentGamePath;
                         if (!string.IsNullOrEmpty(value) && value.Contains("Null"))
                         {
                             list = new[] { "选择游戏路径", "[Cyan]显示主界面[/]", "[red]退出Terminal模式[/]", "[bold red]退出WaveTools[/]", };
@@ -131,7 +132,7 @@ namespace WaveTools.Depend
                             SelectGame();
                             return false;
                         case "[red]退出Terminal模式[/]":
-                            localSettings.Values["Config_TerminalMode"] = 0;
+                            AppDataController.SetTerminalMode(0);
                             m_window = new MainWindow();
                             m_window.Activate();
                             return false;
@@ -145,12 +146,12 @@ namespace WaveTools.Depend
                     }
                 }
             }
-            else 
+            else
             {
                 Console.Title = "WaveTools SafeMode";
                 Console.Clear();
-                Logging.Write("[red]错误问题：[/]" + PanicMessage,2);
-                Logging.Write("其他信息：" + OtherMessage,2);
+                Logging.Write("[red]错误问题：[/]" + PanicMessage, 2);
+                Logging.Write("其他信息：" + OtherMessage, 2);
                 var list = new[] { "[red]清空所有配置文件[/]", "[bold red]退出WaveTools[/]" };
                 var select = AnsiConsole.Prompt(
                         new SelectionPrompt<string>()
@@ -160,7 +161,7 @@ namespace WaveTools.Depend
                 switch (select)
                 {
                     case "[red]清空所有配置文件[/]":
-                        Clear_AllData(null,null);
+                        Clear_AllData(null, null);
                         return false;
                     case "[bold red]退出WaveTools[/]":
                         Application.Current.Exit();
@@ -189,7 +190,7 @@ namespace WaveTools.Depend
                 if (file == null) { fileselect = 1; }
                 else if (file.Name == "Wuthering Waves.exe")
                 {
-                    localSettings.Values["Config_GamePath"] = @file.Path;
+                    AppDataController.SetGamePath(@file.Path);
                     fileselect = 0;
                 }
             });
@@ -207,13 +208,12 @@ namespace WaveTools.Depend
 
         public void Clear_AllData(object sender, RoutedEventArgs e)
         {
-            string userDocumentsFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            DeleteFolder(userDocumentsFolderPath + "\\JSG-LLC\\WaveTools\\", "1");        }
+            DeleteFolder(AppDataController.DataRootPath, "1");
+        }
 
         private void Clear_AllData_NoClose(object sender, RoutedEventArgs e, string Close = "0")
         {
-            string userDocumentsFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            DeleteFolder(userDocumentsFolderPath + "\\JSG-LLC\\WaveTools\\", Close);
+            DeleteFolder(AppDataController.DataRootPath, Close);
         }
 
         private void DeleteFolder(string folderPath, String Close)

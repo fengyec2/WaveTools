@@ -22,8 +22,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using WaveTools.Depend;
-using WaveTools.Depend;
-using Windows.Storage;
 
 namespace WaveTools.Views.FirstRunViews
 {
@@ -33,7 +31,7 @@ namespace WaveTools.Views.FirstRunViews
         {
             this.InitializeComponent();
             Logging.Write("Switch to FirstRunSourceSelect", 0);
-            AppDataController.SetFirstRunStatus(3);
+            AppDataController.SetFirstRunStatus(4);
         }
 
         //选择下载渠道开始
@@ -49,15 +47,13 @@ namespace WaveTools.Views.FirstRunViews
 
         private void DService_Github_Choose(object sender, RoutedEventArgs e)
         {
-            ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-            localSettings.Values["Config_UpdateService"] = 0;
+            AppDataController.SetUpdateService(0);
             DSerivceChooseFinish();
         }
 
         private void DService_JSG_Choose(object sender, RoutedEventArgs e)
         {
-            ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-            localSettings.Values["Config_UpdateService"] = 2;
+            AppDataController.SetUpdateService(2);
             DSerivceChooseFinish();
         }
 

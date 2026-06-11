@@ -30,9 +30,9 @@ namespace WaveTools.Depend
 {
     internal class Logging
     {
-        private static readonly string LogFolderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "JSG-LLC", "Logs");
+        private static string LogFolderPath => AppDataController.GetDataPath("Logs");
         private static readonly string LogFileName = $"WaveTools_Log_{DateTime.Now:yyyyMMdd_HHmmss}.log";
-        private static readonly string LogFilePath = Path.Combine(LogFolderPath, LogFileName);
+        private static string LogFilePath => Path.Combine(LogFolderPath, LogFileName);
 
         static Logging()
         {
@@ -212,7 +212,7 @@ namespace WaveTools.Depend
                         info = info.Replace("\n", ",");
                     }
                 }
-                
+
                 Console.WriteLine(info);
                 logMessage += info;
 

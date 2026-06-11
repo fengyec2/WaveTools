@@ -23,7 +23,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System.Threading.Tasks;
 using WaveTools.Depend;
-using Windows.Storage;
 using System.Diagnostics;
 using Microsoft.UI.Xaml.Media;
 using WaveTools.Depend;
@@ -36,23 +35,19 @@ namespace WaveTools.Views.FirstRunViews
         {
             this.InitializeComponent();
             Logging.Write("Switch to FirstRunTheme", 0);
-            AppDataController.SetFirstRunStatus(2);
-            ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-            if (localSettings.Values["Config_DayNight"] != null)
+            AppDataController.SetFirstRunStatus(3);
+            int dayNight = AppDataController.GetDayNight();
+            if (dayNight == 0)
             {
-                //通过本地设置获取主题模式，并设置按钮状态
-                if (localSettings.Values["Config_DayNight"].ToString() == "0")
-                {
-                    FollowSystemButton.IsChecked = true;
-                }
-                if (localSettings.Values["Config_DayNight"].ToString() == "1")
-                {
-                    DayModeButton.IsChecked = true;
-                }
-                if (localSettings.Values["Config_DayNight"].ToString() == "2")
-                {
-                    NightModeButton.IsChecked = true;
-                }
+                FollowSystemButton.IsChecked = true;
+            }
+            if (dayNight == 1)
+            {
+                DayModeButton.IsChecked = true;
+            }
+            if (dayNight == 2)
+            {
+                NightModeButton.IsChecked = true;
             }
         }
 
@@ -99,8 +94,7 @@ namespace WaveTools.Views.FirstRunViews
 
         private void SetTheme(ThemeMode mode)
         {
-            ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-            localSettings.Values["Config_DayNight"] = (int)mode;
+            AppDataController.SetDayNight((int)mode);
         }
 
         private async void ChangeThemeRestartApp()

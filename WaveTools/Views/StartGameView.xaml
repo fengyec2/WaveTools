@@ -9,225 +9,564 @@
     mc:Ignorable="d"
     Background="Transparent">
 
-    <Grid>
-        <Grid HorizontalAlignment="Stretch" Margin="24">
+    <Page.Resources>
+        <Style x:Key="LaunchCardStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+        </Style>
 
-            
+        <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="SectionSubtitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Opacity" Value="0.62"/>
+            <Setter Property="TextWrapping" Value="WrapWholeWords"/>
+        </Style>
+
+        <Style x:Key="LaunchActionButtonStyle" TargetType="Button">
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+
+        <Style x:Key="LaunchActionToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+
+        <Style x:Key="LargeLaunchButtonStyle" TargetType="Button">
+            <Setter Property="MinHeight" Value="88"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="CornerRadius" Value="8"/>
+        </Style>
+    </Page.Resources>
+
+    <Grid Padding="28">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1.65*"/>
+            <ColumnDefinition Width="24"/>
+            <ColumnDefinition Width="1*"/>
+        </Grid.ColumnDefinitions>
+
+        <Grid Grid.Column="0"
+              x:Name="SGFrame"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*"/>
-                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="1*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 左侧区域 -->
-            <StackPanel Grid.Column="0" HorizontalAlignment="Left">
-                <StackPanel Spacing="8">
-                    <StackPanel HorizontalAlignment="Stretch" Orientation="Horizontal" Spacing="8">
-                        <Button Style="{StaticResource AccentButtonStyle}" x:Name="selectGame" Content="选择游戏本体" Click="SelectGame" />
-                        <Button x:Name="rmGame" Content="清除游戏路径" Click="RMGameLocation"/>
-                        <ToggleButton x:Name="dx11Enable" Content="DX11启动" Click="dx11Enable_Toggle"/>
-                        <Button x:Name="advancedSettings" Content="高级设置" Click="AdvancedSettings"/>
-                        <Button x:Name="reloadFrame" Content="刷新" Click="ReloadFrame"/>
-                    </StackPanel>
+            <Border Grid.Column="0"
+                    Style="{StaticResource LaunchCardStyle}"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                    <StackPanel x:Name="SGFrame" Orientation="Horizontal" Spacing="8">
+                    <Grid Grid.Row="0"
+                          Padding="16,14,16,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                        <Grid BorderBrush="Gray" BorderThickness="1" CornerRadius="8">
-                            <StackPanel Orientation="Vertical" Padding="4">
-                                <Grid >
-                                    <Grid x:Name="Frame_GraphicSettingView_Loading" CornerRadius="8" >
-                                        <StackPanel/>
-                                        <Grid VerticalAlignment="Center" HorizontalAlignment="Center" >
-                                            <StackPanel>
-                                                <ProgressRing Height="36" Width="36"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Grid>
-                                    <StackPanel>
+                        <SelectorBarItem x:Name="GraphicSelect"
+                                         Text="画质调节"
+                                         IsSelected="True"
+                                         IsEnabled="True"
+                                         HorizontalAlignment="Left"
+                                         VerticalAlignment="Center">
+                            <SelectorBarItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE7FC;"/>
+                            </SelectorBarItem.Icon>
+                        </SelectorBarItem>
 
-                                    </StackPanel>
-                                    <Grid x:Name="Frame_GraphicSettingView_Disable" CornerRadius="8"  Visibility="Collapsed" Canvas.ZIndex="100">
-                                        <StackPanel Background="{ThemeResource SystemControlAcrylicElementBrush}"/>
-                                        <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
-                                            <StackPanel>
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe7ba;" Height="36" Width="36"/>
-                                                <TextBlock x:Name="Frame_GraphicSettingView_Disable_Title" Text="目前画质调节功能无法使用" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="Frame_GraphicSettingView_Disable_Subtitle" Text="游戏未手动设置过画质" HorizontalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Grid>
+                        <Button Grid.Column="1"
+                                x:Name="Advanced_Graphics_Btn"
+                                Content="高级设置"
+                                Click="Advanced_Graphics_Click"
+                                VerticalAlignment="Center"/>
+                    </Grid>
 
-                                    <Grid x:Name="Frame_GraphicSettingView_Launched_Disable" CornerRadius="8"  Visibility="Collapsed" Canvas.ZIndex="100">
-                                        <StackPanel Background="{ThemeResource SystemControlAcrylicElementBrush}"/>
-                                        <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
-                                            <StackPanel>
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe7ba;" Height="36" Width="36"/>
-                                                <TextBlock x:Name="Frame_GraphicSettingView_Launched_Disable_Title" Text="" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="Frame_GraphicSettingView_Launched_Disable_Subtitle" Text="" HorizontalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Grid>
+                    <Grid Grid.Row="1"
+                          Padding="12,0,12,12">
+                        <Frame x:Name="Frame_GraphicSettingView"
+                               MinWidth="250"
+                               MinHeight="370"
+                               Padding="8"
+                               HorizontalAlignment="Stretch"
+                               VerticalAlignment="Stretch"/>
 
-                                    <StackPanel>
-                                        <SelectorBarItem x:Name="GraphicSelect" Text="画质调节" IsSelected="True" IsEnabled="True" HorizontalAlignment="Left" VerticalAlignment="Top">
-                                            <SelectorBarItem.Icon>
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe7fc;"/>
-                                            </SelectorBarItem.Icon>
-                                        </SelectorBarItem>
-                                        <Frame x:Name="Frame_GraphicSettingView" Width="250" Height="370" Padding="8" HorizontalAlignment="Left"/>
-                                    </StackPanel>
-
-                                </Grid>
-
-                            </StackPanel>
-
-                            <Button x:Name="Advanced_Graphics_Btn" Canvas.ZIndex="-1" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="12 12 20 12" Content="高级设置" Click="Advanced_Graphics_Click"/>
-
+                        <Grid x:Name="Frame_GraphicSettingView_Loading"
+                              CornerRadius="12"
+                              Background="{ThemeResource SystemControlAcrylicElementBrush}"
+                              Canvas.ZIndex="80">
+                            <ProgressRing Height="36"
+                                          Width="36"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
                         </Grid>
 
-                        <Grid BorderBrush="Gray" BorderThickness="1" CornerRadius="8">
-                            <StackPanel Orientation="Vertical" Padding="4">
-                                <Grid >
-                                    <Grid x:Name="Frame_AccountView_Loading" CornerRadius="8" Visibility="Collapsed">
-                                        <StackPanel/>
-                                        <Grid VerticalAlignment="Center" HorizontalAlignment="Center" >
-                                            <StackPanel>
-                                                <ProgressRing Height="36" Width="36"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Grid>
-                                    <StackPanel>
-
-                                    </StackPanel>
-                                    <Grid x:Name="Frame_AccountView_Disable" CornerRadius="8"  Visibility="Collapsed" Canvas.ZIndex="100">
-                                        <StackPanel Background="{ThemeResource SystemControlAcrylicElementBrush}"/>
-                                        <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
-                                            <StackPanel>
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe7ba;" Height="36" Width="36"/>
-                                                <TextBlock x:Name="Frame_AccountView_Disable_Title" Text="" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="Frame_AccountView_Disable_Subtitle" Text="" HorizontalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Grid>
-
-                                    <Grid x:Name="Frame_AccountView_Usage_Disable" CornerRadius="8"  Visibility="Collapsed" Canvas.ZIndex="100">
-                                        <StackPanel Background="{ThemeResource SystemControlAcrylicElementBrush}"/>
-                                        <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
-                                            <StackPanel>
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe7ba;" Height="36" Width="36"/>
-                                                <TextBlock x:Name="Frame_AccountView_Usage_Disable_Title" Text="不建议使用该账号切换" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="Frame_AccountView_Usage_Disable_Subtitle" Text="游戏本身自带账号切换功能" HorizontalAlignment="Center"/>
-                                                <Button Content="仍要使用" Click="AccountChange_ForceOn" HorizontalAlignment="Center"  Background="Transparent"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Grid>
-
-                                    <Grid x:Name="Frame_AccountView_Launched_Disable" CornerRadius="8"  Visibility="Collapsed" Canvas.ZIndex="120">
-                                        <StackPanel Background="{ThemeResource SystemControlAcrylicElementBrush}"/>
-                                        <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
-                                            <StackPanel>
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe7ba;" Height="36" Width="36"/>
-                                                <TextBlock x:Name="Frame_AccountView_Launched_Disable_Title" Text="" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="Frame_AccountView_Launched_Disable_Subtitle" Text="" HorizontalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Grid>
-
-                                    <StackPanel>
-                                        <SelectorBarItem x:Name="AccountSelect" Text="账号切换" IsSelected="True" IsEnabled="True" HorizontalAlignment="Left" VerticalAlignment="Top">
-                                            <SelectorBarItem.Icon>
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe748;"/>
-                                            </SelectorBarItem.Icon>
-                                        </SelectorBarItem>
-                                        <Frame x:Name="Frame_AccountView" Width="250" Height="370" Padding="8" HorizontalAlignment="Left"/>
-                                    </StackPanel>
-
-                                </Grid>
-
+                        <Grid x:Name="Frame_GraphicSettingView_Disable"
+                              CornerRadius="12"
+                              Visibility="Collapsed"
+                              Background="{ThemeResource SystemControlAcrylicElementBrush}"
+                              Canvas.ZIndex="100">
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE7BA;"
+                                          Height="36"
+                                          Width="36"
+                                          HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="Frame_GraphicSettingView_Disable_Title"
+                                           Text="目前画质调节功能无法使用"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="Frame_GraphicSettingView_Disable_Subtitle"
+                                           Text="游戏未手动设置过画质"
+                                           Opacity="0.65"
+                                           HorizontalAlignment="Center"/>
                             </StackPanel>
-
-                            <Button x:Name="AccountChange_Off_Btn" Canvas.ZIndex="100" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="12 12 20 12" Content="关闭功能" Click="AccountChange_Off"/>
-                            
                         </Grid>
 
-                    </StackPanel>
-                    
-                </StackPanel>
-
-            </StackPanel>
-
-            <!-- 右侧区域 -->
-
-            <Grid HorizontalAlignment="Stretch" Grid.Column="1">
-
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="4*"/>
-                    <RowDefinition Height="1*"/>
-                </Grid.RowDefinitions>
-
-
-                <StackPanel Grid.Row="0" >
-
-                    <TextBlock FontSize="18" FontWeight="Bold" Text="小提示："/>
-                    <TextBlock FontSize="14" x:Name="prompt"/>
-
-                </StackPanel>
-
-                <StackPanel Grid.Row="1">
-
-                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Orientation="Horizontal">
-
-                        <Button x:Name="startLauncher" Width="90" Height="84" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="12 12 0 12" Click="StartLauncher_Click">
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe80f;" Width="32" Height="32"/>
-                                <TextBlock Text="打开启动器" FontSize="12"/>
+                        <Grid x:Name="Frame_GraphicSettingView_Launched_Disable"
+                              CornerRadius="12"
+                              Visibility="Collapsed"
+                              Background="{ThemeResource SystemControlAcrylicElementBrush}"
+                              Canvas.ZIndex="300">
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE7BA;"
+                                          Height="36"
+                                          Width="36"
+                                          HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="Frame_GraphicSettingView_Launched_Disable_Title"
+                                           Text=""
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="Frame_GraphicSettingView_Launched_Disable_Subtitle"
+                                           Text=""
+                                           Opacity="0.65"
+                                           HorizontalAlignment="Center"/>
                             </StackPanel>
-                        </Button>
+                        </Grid>
 
-                        <Button x:Name="launcherRunning" Width="90" Height="84" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="12 12 0 12" IsEnabled="False" Visibility="Collapsed">
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe80f;" Width="32" Height="32"/>
-                                <TextBlock Text="启动器运行中" FontSize="12"/>
+                        <Grid x:Name="Frame_GraphicSettingView_NoGamePath_Disable"
+                              Visibility="Collapsed"
+                              CornerRadius="12"
+                              Background="{ThemeResource SystemControlAcrylicElementBrush}"
+                              Canvas.ZIndex="150">
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE8E5;"
+                                          Height="36"
+                                          Width="36"
+                                          HorizontalAlignment="Center"/>
+                                <TextBlock Text="未选择游戏路径"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="请先在右侧选择游戏本体"
+                                           Opacity="0.65"
+                                           HorizontalAlignment="Center"/>
                             </StackPanel>
-                        </Button>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
 
-                        <Button x:Name="startGame" Width="90" Height="84" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="12 12 0 12" Click="StartGame_Click">
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe768;" Width="32" Height="32"/>
-                                <TextBlock Text="开始游戏" FontSize="12"/>
+            <Border Grid.Column="2"
+                    Style="{StaticResource LaunchCardStyle}"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0"
+                          Padding="16,14,16,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <SelectorBarItem x:Name="AccountSelect"
+                                         Text="账号切换"
+                                         IsSelected="True"
+                                         IsEnabled="True"
+                                         HorizontalAlignment="Left"
+                                         VerticalAlignment="Center">
+                            <SelectorBarItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE748;"/>
+                            </SelectorBarItem.Icon>
+                        </SelectorBarItem>
+
+                        <Button Grid.Column="1"
+                                x:Name="AccountChange_Off_Btn"
+                                Content="关闭功能"
+                                Click="AccountChange_Off"
+                                VerticalAlignment="Center"
+                                Canvas.ZIndex="100"/>
+                    </Grid>
+
+                    <Grid Grid.Row="1"
+                          Padding="12,0,12,12">
+                        <Frame x:Name="Frame_AccountView"
+                               MinWidth="250"
+                               MinHeight="370"
+                               Padding="8"
+                               HorizontalAlignment="Stretch"
+                               VerticalAlignment="Stretch"/>
+
+                        <Grid x:Name="Frame_AccountView_Loading"
+                              CornerRadius="12"
+                              Visibility="Collapsed"
+                              Background="{ThemeResource SystemControlAcrylicElementBrush}"
+                              Canvas.ZIndex="80">
+                            <ProgressRing Height="36"
+                                          Width="36"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid x:Name="Frame_AccountView_Disable"
+                              CornerRadius="12"
+                              Visibility="Collapsed"
+                              Background="{ThemeResource SystemControlAcrylicElementBrush}"
+                              Canvas.ZIndex="100">
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE7BA;"
+                                          Height="36"
+                                          Width="36"
+                                          HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="Frame_AccountView_Disable_Title"
+                                           Text=""
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="Frame_AccountView_Disable_Subtitle"
+                                           Text=""
+                                           Opacity="0.65"
+                                           HorizontalAlignment="Center"/>
                             </StackPanel>
-                        </Button>
-                        <Button x:Name="gameRunning" Width="90" Height="84" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="12 12 0 12" IsEnabled="False" Visibility="Collapsed">
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe768;" Width="32" Height="32"/>
-                                <TextBlock Text="游戏运行中" FontSize="12"/>
+                        </Grid>
+
+                        <Grid x:Name="Frame_AccountView_Usage_Disable"
+                              CornerRadius="12"
+                              Visibility="Collapsed"
+                              Background="{ThemeResource SystemControlAcrylicElementBrush}"
+                              Canvas.ZIndex="100">
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE7BA;"
+                                          Height="36"
+                                          Width="36"
+                                          HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="Frame_AccountView_Usage_Disable_Title"
+                                           Text="不建议使用该账号切换"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="Frame_AccountView_Usage_Disable_Subtitle"
+                                           Text="游戏本身自带账号切换功能"
+                                           Opacity="0.65"
+                                           HorizontalAlignment="Center"/>
+                                <Button Content="仍要使用"
+                                        Click="AccountChange_ForceOn"
+                                        HorizontalAlignment="Center"
+                                        Background="Transparent"/>
                             </StackPanel>
-                        </Button>
-                    </StackPanel>
+                        </Grid>
 
-                </StackPanel>
+                        <Grid x:Name="Frame_AccountView_Launched_Disable"
+                              CornerRadius="12"
+                              Visibility="Collapsed"
+                              Background="{ThemeResource SystemControlAcrylicElementBrush}"
+                              Canvas.ZIndex="300">
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE7BA;"
+                                          Height="36"
+                                          Width="36"
+                                          HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="Frame_AccountView_Launched_Disable_Title"
+                                           Text=""
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="Frame_AccountView_Launched_Disable_Subtitle"
+                                           Text=""
+                                           Opacity="0.65"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
 
-            </Grid>
-
-            <TeachingTip x:Name="ValidGameFile"
-                Target="{x:Bind selectGame}"
-                Title="错误的游戏本体"
-                Subtitle="选择正确的StarRail.exe\n通常位于[游戏根目录\Game\StarRail.exe]"
-	            CloseButtonContent="关闭">
-                <TeachingTip.IconSource>
-                    <SymbolIconSource Symbol="Help" />
-                </TeachingTip.IconSource>
-            </TeachingTip>
-
-            <TeachingTip x:Name="NoSelectedAccount"
-                Target="{x:Bind startGame}"
-                Title="未选择账号"
-                Subtitle="请选择要登录的账号"
-                CloseButtonContent="关闭">
-                <TeachingTip.IconSource>
-                    <SymbolIconSource Symbol="Help" />
-                </TeachingTip.IconSource>
-            </TeachingTip>
+                        <Grid x:Name="Frame_AccountView_NoGamePath_Disable"
+                              Visibility="Collapsed"
+                              CornerRadius="12"
+                              Background="{ThemeResource SystemControlAcrylicElementBrush}"
+                              Canvas.ZIndex="150">
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE8E5;"
+                                          Height="36"
+                                          Width="36"
+                                          HorizontalAlignment="Center"/>
+                                <TextBlock Text="未选择游戏路径"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="请先在右侧选择游戏本体"
+                                           Opacity="0.65"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
         </Grid>
-    </Grid>
 
+        <Grid Grid.Column="2"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="16"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0"
+                    Style="{StaticResource LaunchCardStyle}"
+                    Padding="18">
+                <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8">
+                        <FontIcon FontFamily="Segoe Fluent Icons"
+                                  Glyph="&#xE946;"
+                                  FontSize="18"
+                                  VerticalAlignment="Center"/>
+                        <TextBlock Text="小提示"
+                                   Style="{StaticResource SectionTitleStyle}"/>
+                    </StackPanel>
+
+                    <TextBlock x:Name="prompt"
+                               FontSize="14"
+                               Opacity="0.78"
+                               TextWrapping="WrapWholeWords"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Row="2"
+                    Style="{StaticResource LaunchCardStyle}"
+                    Padding="18">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="24"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0"
+                          ColumnSpacing="8"
+                          RowSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="1*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Button Grid.Row="0"
+                                Grid.Column="0"
+                                x:Name="gamePathAction"
+                                Style="{StaticResource LaunchActionButtonStyle}"
+                                Click="GamePathAction_Click">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="6"
+                                        HorizontalAlignment="Center">
+                                <FontIcon x:Name="gamePathActionIcon"
+                                          FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE8E5;"
+                                          FontSize="14"/>
+                                <TextBlock x:Name="gamePathActionText"
+                                           Text="选择游戏本体"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Grid.Row="0"
+                                Grid.Column="1"
+                                x:Name="reloadFrame"
+                                Style="{StaticResource LaunchActionButtonStyle}"
+                                Click="ReloadFrame">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="6"
+                                        HorizontalAlignment="Center">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE72C;"
+                                          FontSize="14"/>
+                                <TextBlock Text="刷新"/>
+                            </StackPanel>
+                        </Button>
+
+                        <ToggleButton Grid.Row="1"
+                                      Grid.Column="0"
+                                      x:Name="dx11Enable"
+                                      Style="{StaticResource LaunchActionToggleButtonStyle}"
+                                      Click="dx11Enable_Toggle">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="6"
+                                        HorizontalAlignment="Center">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE7FC;"
+                                          FontSize="14"/>
+                                <TextBlock Text="DX11启动"/>
+                            </StackPanel>
+                        </ToggleButton>
+
+                        <Button Grid.Row="1"
+                                Grid.Column="1"
+                                x:Name="advancedSettings"
+                                Style="{StaticResource LaunchActionButtonStyle}"
+                                Click="AdvancedSettings">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="6"
+                                        HorizontalAlignment="Center">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE713;"
+                                          FontSize="14"/>
+                                <TextBlock Text="启动参数"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <Grid Grid.Row="1">
+                        <Grid Background="{ThemeResource AppSeparatorBrush}" Height="0.5" Width="84"/>
+                    </Grid>
+                    <Grid Grid.Row="2"
+                          ColumnSpacing="10"
+                          VerticalAlignment="Bottom">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="1*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0"
+                                x:Name="startLauncher"
+                                Style="{StaticResource LargeLaunchButtonStyle}"
+                                Click="StartLauncher_Click">
+                            <StackPanel VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE80F;"
+                                          FontSize="22"/>
+                                <TextBlock Text="打开启动器"
+                                           FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Grid.Column="0"
+                                x:Name="launcherRunning"
+                                Style="{StaticResource LargeLaunchButtonStyle}"
+                                IsEnabled="False"
+                                Visibility="Collapsed">
+                            <StackPanel VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE80F;"
+                                          FontSize="24"/>
+                                <TextBlock Text="启动器运行中"
+                                           FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Grid.Column="1"
+                                x:Name="startGame"
+                                Style="{StaticResource LargeLaunchButtonStyle}"
+                                Click="StartGame_Click">
+                            <StackPanel VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE768;"
+                                          FontSize="22"/>
+                                <TextBlock Text="开始游戏"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Grid.Column="1"
+                                x:Name="gameRunning"
+                                Style="{StaticResource LargeLaunchButtonStyle}"
+                                IsEnabled="False"
+                                Visibility="Collapsed">
+                            <StackPanel VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE768;"
+                                          FontSize="24"/>
+                                <TextBlock Text="游戏运行中"
+                                           FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <TeachingTip x:Name="ValidGameFile"
+                     Target="{x:Bind gamePathAction}"
+                     Title="错误的游戏本体"
+                     Subtitle="选择正确的Wuthering Waves.exe&#x0a;通常位于[游戏根目录\Wuthering Waves Game\Wuthering Waves.exe]"
+                     CloseButtonContent="关闭">
+            <TeachingTip.IconSource>
+                <SymbolIconSource Symbol="Help"/>
+            </TeachingTip.IconSource>
+        </TeachingTip>
+
+        <TeachingTip x:Name="NoSelectedAccount"
+                     Target="{x:Bind startGame}"
+                     Title="未选择账号"
+                     Subtitle="请选择要登录的账号"
+                     CloseButtonContent="关闭">
+            <TeachingTip.IconSource>
+                <SymbolIconSource Symbol="Help"/>
+            </TeachingTip.IconSource>
+        </TeachingTip>
+    </Grid>
 </Page>

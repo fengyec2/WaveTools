@@ -33,7 +33,7 @@ namespace WaveTools.Depend
         public static async Task Write(string message, int severity, string fileName)
         {
             // 获取用户文档目录下的JSG-LLC\Panic目录
-            string folderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "JSG-LLC", "Panic");
+            string folderPath = AppDataController.GetDataPath("Panic");
 
             // 确保目录存在
             Directory.CreateDirectory(folderPath);

@@ -33,7 +33,7 @@ namespace WaveTools.Views.FirstRunViews
         {
             this.InitializeComponent();
             Logging.Write("Switch to FirstRunExtra", 0);
-            AppDataController.SetFirstRunStatus(5);
+            AppDataController.SetFirstRunStatus(6);
         }
 
         private async void Install_Font_Click(object sender, RoutedEventArgs e)

@@ -11,65 +11,98 @@
     <Grid HorizontalAlignment="Stretch" Margin="0 36 0 0">
 
         <StackPanel HorizontalAlignment="Left" Orientation="Vertical">
-
-            <TextBlock Text="首次设置-数据还原?" FontWeight="Bold" FontSize="24"/>
-
+            <TextBlock Text="首次设置-数据保存位置" FontWeight="Bold" FontSize="24"/>
         </StackPanel>
 
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="38">
+        <Grid VerticalAlignment="Center"
+              HorizontalAlignment="Center"
+              Width="720"
+              Margin="38">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition Width="320"/>
+            </Grid.ColumnDefinitions>
 
-            <Grid>
+            <StackPanel Grid.Column="0"
+                        VerticalAlignment="Center"
+                        Width="300"
+                        HorizontalAlignment="Right">
+                <Image Source="ms-appx:///Imgs/FirstRun_Windows.png"
+                       HorizontalAlignment="Right"
+                       Width="48"
+                       Height="48"/>
+                <StackPanel Height="10"/>
+                <TextBlock Text="选择数据目录"
+                           FontSize="22"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Right"/>
+                <StackPanel Height="10"/>
+                <TextBlock Text="配置、抽卡记录、依赖、日志等数据都会保存到这里"
+                           FontSize="18"
+                           HorizontalAlignment="Right"
+                           TextWrapping="Wrap"
+                           TextAlignment="Right"/>
+            </StackPanel>
 
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1*"/>
-                    <ColumnDefinition Width="1*"/>
-                    <ColumnDefinition Width="1*"/>
-                </Grid.ColumnDefinitions>
+            <Border Grid.Column="1"
+                    Width="1"
+                    Height="240"
+                    Background="{ThemeResource AppSeparatorBrush}"
+                    Opacity="0.5"
+                    HorizontalAlignment="Center"/>
 
-                <StackPanel Grid.Column="0" VerticalAlignment="Center" Width="280">
-                    <Image Source="ms-appx:///Imgs/FirstRun_Question.png" HorizontalAlignment="Right" Width="48" Height="48"/>
-                    <StackPanel Orientation="Horizontal" Spacing="10"/>
-                    <TextBlock Text="是否用过WaveTools?" FontSize="22" FontWeight="Bold" HorizontalAlignment="Right"/>
-                    <StackPanel Orientation="Horizontal" Spacing="10"/>
-                    <TextBlock Text="如使用过可在这里还原数据" FontSize="18" HorizontalAlignment="Right"/>
-                </StackPanel>
+            <StackPanel Grid.Column="2"
+                        VerticalAlignment="Center"
+                        Width="300"
+                        HorizontalAlignment="Left">
 
-                <StackPanel Grid.Column="1" Height="200" Width="1" Background="Gray" Opacity="0.5" Margin="24 0"/>
-
-                <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                    
-                    <StackPanel HorizontalAlignment="Center" Width="280">
-
-                        <Button x:Name="NotUsedButton" Click="NextPage" HorizontalContentAlignment="Left" Width="185">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <Image Source="ms-appx:///Imgs/FirstRun_Next.png" Width="32" Height="32"/>
-                                <StackPanel Orientation="Vertical" HorizontalAlignment="Left">
-                                    <TextBlock Text="设置为新工具" FontWeight="SemiBold"/>
-                                    <TextBlock Text="从未使用过" Opacity="0.6"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Button>
-
-                        <StackPanel Height="8"/>
-
-                        <Button x:Name="RecoverButton" Click="Restore_Data" HorizontalContentAlignment="Left" Width="185">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <Image Source="ms-appx:///Imgs/FirstRun_Recover.png" Width="32" Height="32"/>
-                                <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="还原数据" FontWeight="SemiBold"/>
-                                    <TextBlock Text="使用备份文件还原" Opacity="0.6"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Button>
-
+                <Button x:Name="DefaultLocationButton"
+                        Click="UseDefaultLocation_Click"
+                        HorizontalContentAlignment="Left"
+                        Width="280"
+                        MinHeight="58"
+                        Padding="12 8">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Image Source="ms-appx:///Imgs/FirstRun_Next.png" Width="28" Height="28"/>
+                        <StackPanel Orientation="Vertical" HorizontalAlignment="Left">
+                            <TextBlock Text="使用默认位置" FontWeight="SemiBold"/>
+                            <TextBlock Text="推荐" Opacity="0.6" FontSize="12"/>
+                        </StackPanel>
                     </StackPanel>
-                    
-                </StackPanel>
-                
-            </Grid>
+                </Button>
 
-        </StackPanel>
+                <TextBlock x:Name="DefaultPathText"
+                           Text=""
+                           Width="300"
+                           Opacity="0.65"
+                           FontSize="12"
+                           TextWrapping="WrapWholeWords"
+                           Margin="0 8 0 16"/>
 
+                <Button x:Name="CustomLocationButton"
+                        Click="UseCustomLocation_Click"
+                        HorizontalContentAlignment="Left"
+                        Width="280"
+                        MinHeight="58"
+                        Padding="12 8">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Image Source="ms-appx:///Imgs/FirstRun_Question.png" Width="28" Height="28"/>
+                        <StackPanel Orientation="Vertical" HorizontalAlignment="Left">
+                            <TextBlock Text="选择自定义位置" FontWeight="SemiBold"/>
+                            <TextBlock Text="自行选择数据保存目录" Opacity="0.6" FontSize="12"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Button>
+
+                <TextBlock x:Name="CustomPathText"
+                           Text=""
+                           Width="300"
+                           Opacity="0.65"
+                           FontSize="12"
+                           TextWrapping="WrapWholeWords"
+                           Margin="0 8 0 0"/>
+            </StackPanel>
+        </Grid>
     </Grid>
-
 </Page>

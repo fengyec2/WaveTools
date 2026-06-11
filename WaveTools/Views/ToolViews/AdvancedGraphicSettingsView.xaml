@@ -11,8 +11,8 @@
     <Grid Width="500" Height="350">
         <StackPanel Orientation="Vertical" Spacing="2">
             <StackPanel Orientation="Vertical">
-                <TextBlock Foreground="Red" FontWeight="ExtraBold" Text="实验性功能"/>
-                <TextBlock Foreground="Red" FontWeight="ExtraBold" Text="使用此功能导致的后果概不负责"/>
+                <TextBlock Foreground="{ThemeResource AppDangerBrush}" FontWeight="ExtraBold" Text="实验性功能"/>
+                <TextBlock Foreground="{ThemeResource AppDangerBrush}" FontWeight="ExtraBold" Text="使用此功能导致的后果概不负责"/>
                 <TextBlock Foreground="Green" FontWeight="SemiBold" Text="如果您觉得【这下看懂了！】"/>
                 <TextBlock Foreground="Green" FontWeight="SemiBold" Text="那么【使用，请！】。"/>
             </StackPanel>

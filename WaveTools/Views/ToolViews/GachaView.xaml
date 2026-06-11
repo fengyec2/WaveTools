@@ -62,7 +62,7 @@
                 <Button x:Name="ClearGacha"
                         Content="清空记录"
                         FontWeight="Bold"
-                        Foreground="Red"
+                        Foreground="{ThemeResource AppDangerBrush}"
                         Click="ClearGacha_Click"
                         IsEnabled="False"
                         Margin="8 0 0 8"/>
@@ -82,7 +82,9 @@
                           Margin="8,0,0,8"
                           IsEnabled="False"
                           SelectionChanged="GachaPoolComboBox_SelectionChanged"/>
-                <Button x:Name="CreateCapture" Content="创建截图" Click="CreateCapture_Click" Margin="8 0 0 8"/>
+                
+                <Button x:Name="CreateCapture" Content="创建截图" Click="CreateCapture_Click" Margin="8 0 0 8" Visibility="Collapsed"/>
+                
             </StackPanel>
 
             <StackPanel HorizontalAlignment="Stretch"
@@ -104,7 +106,7 @@
                   Height="120"
                   CornerRadius="12"
                   HorizontalAlignment="Center"
-                  VerticalAlignment="Top"
+                  VerticalAlignment="Center"
                   Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}">
                 <StackPanel VerticalAlignment="Center"
                             HorizontalAlignment="Center">
@@ -123,7 +125,7 @@
                   Height="120"
                   CornerRadius="12"
                   HorizontalAlignment="Center"
-                  VerticalAlignment="Top"
+                  VerticalAlignment="Center"
                   Background="{ThemeResource SystemControlAcrylicElementMediumHighBrush}">
                 <StackPanel VerticalAlignment="Center"
                             HorizontalAlignment="Center">

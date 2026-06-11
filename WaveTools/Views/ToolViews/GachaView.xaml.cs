@@ -59,18 +59,39 @@ namespace WaveTools.Views.ToolViews
         private bool isChangingGachaUidProgrammatically = false;
         private int gachaRecordsLoadToken = 0;
 
+        private bool _hasLoadedOnce;
+        private bool _isRefreshingTempGachaViewByHotkey;
+
         [DllImport("User32.dll")]
         public static extern short GetAsyncKeyState(int vKey);
 
         public GachaView()
         {
             InitializeComponent();
+            this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
             Logging.Write("Switch to GachaView", 0);
             this.Loaded += GachaView_Loaded;
+
+            KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
+
+            var refreshGachaAccelerator = new KeyboardAccelerator
+            {
+                Key = Windows.System.VirtualKey.F5
+            };
+
+            refreshGachaAccelerator.Invoked += RefreshGachaAccelerator_Invoked;
+            KeyboardAccelerators.Add(refreshGachaAccelerator);
         }
 
         private async void GachaView_Loaded(object sender, RoutedEventArgs e)
         {
+            if (_hasLoadedOnce)
+            {
+                return;
+            }
+
+            _hasLoadedOnce = true;
+
             if (AppDataController.GetGamePath() == "Null")
             {
                 GetGachaURL.IsEnabled = false;
@@ -108,7 +129,7 @@ namespace WaveTools.Views.ToolViews
 
         private async void GetGachaURL_Click(object sender, RoutedEventArgs e)
         {
-            string recordsBasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), @"JSG-LLC\WaveTools\GachaRecords");
+            string recordsBasePath = AppDataController.GetDataPath("GachaRecords");
             string gachaLinksJson = await ProcessRun.WaveToolsHelperAsync($"/GetGachaURL {AppDataController.GetGamePathForHelper()}");
 
             try
@@ -555,7 +576,7 @@ namespace WaveTools.Views.ToolViews
             GachaPoolComboBox.IsEnabled = false;
             GachaPoolComboBox.SelectionChanged += GachaPoolComboBox_SelectionChanged;
 
-            string recordsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "JSG-LLC", "WaveTools", "GachaRecords");
+            string recordsDirectory = AppDataController.GetDataPath("GachaRecords");
 
             if (Directory.Exists(recordsDirectory))
             {
@@ -626,8 +647,8 @@ namespace WaveTools.Views.ToolViews
 
             try
             {
-                string linkDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "JSG-LLC", "WaveTools", "GachaLinks");
-                string recordsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "JSG-LLC", "WaveTools", "GachaRecords");
+                string linkDirectory = AppDataController.GetDataPath("GachaLinks");
+                string recordsDirectory = AppDataController.GetDataPath("GachaRecords");
 
                 HashSet<string> uidSet = new HashSet<string>();
 
@@ -750,12 +771,7 @@ namespace WaveTools.Views.ToolViews
             GachaPoolComboBox.Width = 120;
             GachaPoolComboBox.SelectionChanged += GachaPoolComboBox_SelectionChanged;
 
-            string recordsDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "JSG-LLC",
-                "WaveTools",
-                "GachaRecords"
-            );
+            string recordsDirectory = AppDataController.GetDataPath("GachaRecords");
 
             string recordsFilePath = Path.Combine(recordsDirectory, $"{uid}.json");
 
@@ -986,6 +1002,54 @@ namespace WaveTools.Views.ToolViews
             LoadGachaPoolData(cardPoolId);
         }
 
+        private async void RefreshGachaAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        {
+            args.Handled = true;
+            await RefreshTempGachaViewAsync();
+        }
+
+        private async Task RefreshTempGachaViewAsync()
+        {
+            if (_isRefreshingTempGachaViewByHotkey)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(selectedUid) || selectedCardPoolId <= 0)
+            {
+                return;
+            }
+
+            if (gachaFrame == null || gachaView.Visibility != Visibility.Visible)
+            {
+                return;
+            }
+
+            _isRefreshingTempGachaViewByHotkey = true;
+
+            try
+            {
+                Logging.Write("Refresh TempGachaView by F5", 0);
+
+                if (gachaFrame.Content is TempGachaView tempGachaView)
+                {
+                    await tempGachaView.RefreshDataAsync();
+                }
+                else
+                {
+                    LoadGachaPoolData(selectedCardPoolId.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.Write($"Refresh TempGachaView failed: {ex.Message}", 2);
+                NotificationManager.RaiseNotification("抽卡分析刷新失败", ex.Message, InfoBarSeverity.Error, false, 5);
+            }
+            finally
+            {
+                _isRefreshingTempGachaViewByHotkey = false;
+            }
+        }
 
         private void UpdateGachaPoolComboBoxWidth(string text)
         {
@@ -1058,7 +1122,7 @@ namespace WaveTools.Views.ToolViews
 
         private async void ExportWWGF_Click(object sender, RoutedEventArgs e)
         {
-            string recordsBasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), @"JSG-LLC\WaveTools\GachaRecords");
+            string recordsBasePath = AppDataController.GetDataPath("GachaRecords");
             DateTime now = DateTime.Now;
             string formattedDate = now.ToString("yyyy_MM_dd_HH_mm_ss");
 
@@ -1085,7 +1149,7 @@ namespace WaveTools.Views.ToolViews
 
             if (filePath != null)
             {
-                string recordsBasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), @"JSG-LLC\WaveTools\GachaRecords");
+                string recordsBasePath = AppDataController.GetDataPath("GachaRecords");
                 await ImportGacha.Import(filePath);
             }
 
@@ -1131,7 +1195,7 @@ namespace WaveTools.Views.ToolViews
             return new Border
             {
                 Padding = new Thickness(3),
-                BorderBrush = new SolidColorBrush(Colors.Gray),
+                BorderBrush = (Brush)Application.Current.Resources["AppSeparatorBrush"],
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8)
             };
@@ -1251,7 +1315,7 @@ namespace WaveTools.Views.ToolViews
             content.Children.Add(new StackPanel
             {
                 Height = 1,
-                Background = new SolidColorBrush(Colors.Gray)
+                Background = (Brush)Application.Current.Resources["AppSeparatorBrush"]
             });
 
             content.Children.Add(new TextBlock
@@ -1390,9 +1454,7 @@ namespace WaveTools.Views.ToolViews
                 if (!string.IsNullOrWhiteSpace(ScreenShotGacha.FilePath))
                 {
                     screenshotDisplayPath = Path.Combine(
-                        "JSG-LLC",
-                        "WaveTools",
-                        "GachaScreenshots",
+                        AppDataController.GetDataPath("GachaScreenshots"),
                         Path.GetFileName(ScreenShotGacha.FilePath)
                     );
                 }

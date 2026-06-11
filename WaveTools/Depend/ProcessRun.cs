@@ -42,7 +42,7 @@ namespace WaveTools.Depend
                         process.StartInfo.UseShellExecute = false;
                         process.StartInfo.RedirectStandardOutput = true;
                         process.StartInfo.RedirectStandardError = true; // 捕获标准错误输出
-                        process.StartInfo.FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), @"JSG-LLC\WaveTools\Depends\WaveToolsHelper\WaveToolsHelper.exe");
+                        process.StartInfo.FileName = AppDataController.GetDataPath("Depends", "WaveToolsHelper", "WaveToolsHelper.exe");
                         process.StartInfo.Arguments = args;
 
                         Logging.Write($"Starting process: {process.StartInfo.FileName} with arguments: {args}", 0, "WaveToolsHelper");
@@ -84,7 +84,7 @@ namespace WaveTools.Depend
             }
             catch (Exception ex)
             {
-                NotificationManager.RaiseNotification("错误", "停止WaveToolsHelper失败"+ex.ToString(),InfoBarSeverity.Error);
+                NotificationManager.RaiseNotification("错误", "停止WaveToolsHelper失败" + ex.ToString(), InfoBarSeverity.Error);
             }
         }
 
@@ -106,7 +106,7 @@ namespace WaveTools.Depend
 
         public async static Task RestartApp()
         {
-            Logging.Write("Restart WaveTools Requested",2);
+            Logging.Write("Restart WaveTools Requested", 2);
             var processId = Process.GetCurrentProcess().Id;
             var fileName = Process.GetCurrentProcess().MainModule.FileName;
             ProcessStartInfo info = new ProcessStartInfo(fileName)

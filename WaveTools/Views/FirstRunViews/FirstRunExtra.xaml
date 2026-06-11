@@ -28,7 +28,7 @@
                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE722;" />
             </StackPanel>
 
-            <StackPanel Height="1" Width="135" Background="Gray"/>
+            <StackPanel Height="1" Width="135" Background="{ThemeResource AppSeparatorBrush}"/>
 
             <TextBlock Text="如果看不到图标则需要安装图标字体" FontSize="18" HorizontalAlignment="Center"/>
 

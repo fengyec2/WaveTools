@@ -106,7 +106,7 @@ namespace WaveTools.Depend
             }
 
             string uid = importData.info.uid;
-            string recordsBasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), @"JSG-LLC\WaveTools\GachaRecords");
+            string recordsBasePath = AppDataController.GetDataPath("GachaRecords");
             string targetFilePath = Path.Combine(recordsBasePath, $"{uid}.json");
             string tempExportFilePath = Path.Combine(recordsBasePath, "tmp", $"{uid}.json");
 

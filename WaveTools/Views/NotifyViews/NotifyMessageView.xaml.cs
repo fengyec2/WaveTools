@@ -38,9 +38,7 @@ namespace WaveTools.Views.NotifyViews
             this.InitializeComponent();
             Logging.Write("Switch to NotifyPostsView", 0);
 
-            // 获取用户文档目录下的JSG-LLC\WaveTools\Posts目录
-            string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string waveToolsFolderPath = Path.Combine(documentsPath, "JSG-LLC", "WaveTools", "Posts");
+            string waveToolsFolderPath = AppDataController.GetDataPath("Posts");
             string settingsFilePath = Path.Combine(waveToolsFolderPath, "notice.json");
 
             // 确保目录和文件存在

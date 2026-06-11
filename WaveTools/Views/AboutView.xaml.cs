@@ -21,21 +21,26 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using WaveTools.Depend;
+using Microsoft.UI.Xaml.Media.Animation;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
+using WaveTools.Depend;
+using WaveTools.Depend;
+using Windows.Foundation;
 using Windows.ApplicationModel;
 using Windows.Storage;
-using System.IO.Compression;
 using Windows.Storage.Pickers;
-using Newtonsoft.Json;
-using System.Net.Http;
+using WinRT.Interop;
 using static WaveTools.App;
-using WaveTools.Depend;
 using static WaveTools.Depend.CommonHelpers;
 
 namespace WaveTools.Views
@@ -46,6 +51,9 @@ namespace WaveTools.Views
         private readonly GetJSGLatest _getJSGLatest = new GetJSGLatest();
 
         private bool isProgrammaticChange = false;
+        private bool isStorageManagementExpanded = false;
+        private Storyboard storageManagementStoryboard;
+        private static readonly SemaphoreSlim StorageOperationSemaphore = new SemaphoreSlim(1, 1);
 
         [DllImport("User32.dll")]
         public static extern short GetAsyncKeyState(int vKey);
@@ -78,12 +86,45 @@ namespace WaveTools.Views
         public void LoadSettings()
         {
             Logging.Write("Loading settings", 0);
-            consoleToggle.IsChecked = AppDataController.GetConsoleMode() == 1;
-            terminalToggle.IsChecked = AppDataController.GetTerminalMode() == 1;
-            autoCheckUpdateToggle.IsChecked = AppDataController.GetAutoCheckUpdate() == 1;
-            adminModeToggle.IsChecked = AppDataController.GetAdminMode() == 1;
-            userviceRadio.SelectedIndex = AppDataController.GetUpdateService() == 0 ? 1 : AppDataController.GetUpdateService() == 2 ? 0 : -1;
-            themeRadio.SelectedIndex = AppDataController.GetDayNight();
+            consoleToggle.IsOn = AppDataController.GetConsoleMode() == 1;
+            terminalToggle.IsOn = AppDataController.GetTerminalMode() == 1;
+            autoCheckUpdateToggle.IsOn = AppDataController.GetAutoCheckUpdate() == 1;
+            adminModeToggle.IsOn = AppDataController.GetAdminMode() == 1;
+
+            int updateService = AppDataController.GetUpdateService();
+            userviceCombo.SelectedIndex = updateService == 0 ? 1 : updateService == 2 ? 0 : -1;
+            themeCombo.SelectedIndex = AppDataController.GetDayNight();
+
+            if (dataRootPathText != null)
+            {
+                dataRootPathText.Text = AppDataController.DataRootPath;
+            }
+
+            UpdateToggleStateTexts();
+            _ = RefreshStorageUsageAsync();
+        }
+
+        private void UpdateToggleStateTexts()
+        {
+            if (consoleToggleStateText != null)
+            {
+                consoleToggleStateText.Text = consoleToggle.IsOn ? "开" : "关";
+            }
+
+            if (terminalToggleStateText != null)
+            {
+                terminalToggleStateText.Text = terminalToggle.IsOn ? "开" : "关";
+            }
+
+            if (autoCheckUpdateToggleStateText != null)
+            {
+                autoCheckUpdateToggleStateText.Text = autoCheckUpdateToggle.IsOn ? "开" : "关";
+            }
+
+            if (adminModeToggleStateText != null)
+            {
+                adminModeToggleStateText.Text = adminModeToggle.IsOn ? "开" : "关";
+            }
         }
 
         private void CheckFont()
@@ -113,26 +154,50 @@ namespace WaveTools.Views
 
         private void Console_Toggle(object sender, RoutedEventArgs e)
         {
+            if (isProgrammaticChange)
+            {
+                return;
+            }
+
             Logging.Write("Toggling console mode", 0);
-            if (consoleToggle.IsChecked ?? false) TerminalMode.ShowConsole(); else TerminalMode.HideConsole();
-            AppDataController.SetConsoleMode(consoleToggle.IsChecked == true ? 1 : 0);
+            if (consoleToggle.IsOn) TerminalMode.ShowConsole(); else TerminalMode.HideConsole();
+            AppDataController.SetConsoleMode(consoleToggle.IsOn ? 1 : 0);
+            UpdateToggleStateTexts();
         }
 
         private void TerminalMode_Toggle(object sender, RoutedEventArgs e)
         {
+            if (isProgrammaticChange)
+            {
+                return;
+            }
+
             Logging.Write("Toggling terminal mode", 0);
-            TerminalTip.IsOpen = terminalToggle.IsChecked ?? false;
-            AppDataController.SetTerminalMode(terminalToggle.IsChecked == true ? 1 : 0);
+            TerminalTip.IsOpen = terminalToggle.IsOn;
+            AppDataController.SetTerminalMode(terminalToggle.IsOn ? 1 : 0);
+            UpdateToggleStateTexts();
         }
 
         private void Auto_Check_Update_Toggle(object sender, RoutedEventArgs e)
         {
-            AppDataController.SetAutoCheckUpdate(autoCheckUpdateToggle.IsChecked == true ? 1 : 0);
+            if (isProgrammaticChange)
+            {
+                return;
+            }
+
+            AppDataController.SetAutoCheckUpdate(autoCheckUpdateToggle.IsOn ? 1 : 0);
+            UpdateToggleStateTexts();
         }
 
         private void Admin_Mode_Toggle(object sender, RoutedEventArgs e)
         {
-            AppDataController.SetAdminMode(adminModeToggle.IsChecked == true ? 1 : 0);
+            if (isProgrammaticChange)
+            {
+                return;
+            }
+
+            AppDataController.SetAdminMode(adminModeToggle.IsOn ? 1 : 0);
+            UpdateToggleStateTexts();
         }
 
         public void Clear_AllData_TipShow(object sender, RoutedEventArgs e)
@@ -144,16 +209,14 @@ namespace WaveTools.Views
         public async void ClearAllData(TeachingTip sender, object args)
         {
             Logging.Write("Clearing all data", 0);
-            string userDocumentsFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string targetFolderPath = Path.Combine(userDocumentsFolderPath, "JSG-LLC", "WaveTools");
+            string targetFolderPath = AppDataController.DataRootPath;
             await DeleteFolderAsync(targetFolderPath, true);
         }
 
         public async void ClearAllData_NoClose(object sender, RoutedEventArgs e, bool close = false)
         {
             Logging.Write("Clearing all data without closing", 0);
-            string userDocumentsFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string targetFolderPath = Path.Combine(userDocumentsFolderPath, "JSG-LLC", "WaveTools");
+            string targetFolderPath = AppDataController.DataRootPath;
             await DeleteFolderAsync(targetFolderPath, close);
         }
 
@@ -273,8 +336,8 @@ namespace WaveTools.Views
             var XamlRoot = sender.XamlRoot;
             Action action;
             if (isWaveTools) action = StartUpdate; else action = StartDependUpdate;
-            
-            DialogManager.RaiseDialog(XamlRoot,Title,Content,true,PrimaryButtonText, action);
+
+            DialogManager.RaiseDialog(XamlRoot, Title, Content, true, PrimaryButtonText, action);
         }
 
         public async void StartUpdate()
@@ -338,48 +401,1214 @@ namespace WaveTools.Views
         }
 
         // 选择主题开始
-        private void ThemeRadio_Follow(object sender, RoutedEventArgs e)
+        private void ThemeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Logging.Write("Selected theme: Follow", 0);
-            if (!isProgrammaticChange) { ThemeTip.IsOpen = true; AppDataController.SetDayNight(0); }
-        }
+            if (isProgrammaticChange)
+            {
+                return;
+            }
 
-        private void ThemeRadio_Light(object sender, RoutedEventArgs e)
-        {
-            Logging.Write("Selected theme: Light", 0);
-            if (!isProgrammaticChange) { ThemeTip.IsOpen = true; AppDataController.SetDayNight(1); }
-        }
+            int selectedIndex = themeCombo.SelectedIndex;
+            if (selectedIndex < 0)
+            {
+                return;
+            }
 
-        private void ThemeRadio_Dark(object sender, RoutedEventArgs e)
-        {
-            Logging.Write("Selected theme: Dark", 0);
-            if (!isProgrammaticChange) { ThemeTip.IsOpen = true; AppDataController.SetDayNight(2); }
+            Logging.Write("Selected theme index: " + selectedIndex, 0);
+            ThemeTip.IsOpen = true;
+            AppDataController.SetDayNight(selectedIndex);
         }
 
         // 选择下载渠道开始
-        private void uservice_Github_Choose(object sender, RoutedEventArgs e)
+        private void UpdateServiceCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Logging.Write("Selected update service: Github", 0);
-            if (!isProgrammaticChange) { AppDataController.SetUpdateService(0); }
+            if (isProgrammaticChange)
+            {
+                return;
+            }
+
+            if (userviceCombo.SelectedIndex == 0)
+            {
+                Logging.Write("Selected update service: JSG", 0);
+                AppDataController.SetUpdateService(2);
+                return;
+            }
+
+            if (userviceCombo.SelectedIndex == 1)
+            {
+                Logging.Write("Selected update service: Github", 0);
+                AppDataController.SetUpdateService(0);
+            }
         }
 
-        private void uservice_Gitee_Choose(object sender, RoutedEventArgs e)
+        private async void Change_DataRoot_Click(object sender, RoutedEventArgs e)
         {
-            Logging.Write("Selected update service: Gitee", 0);
-            if (!isProgrammaticChange) { AppDataController.SetUpdateService(1); }
+            string folderPath = await PickFolderAsync();
+            if (string.IsNullOrWhiteSpace(folderPath))
+            {
+                return;
+            }
+
+            if (AppDataController.IsCurrentDataRoot(folderPath))
+            {
+                NotificationManager.RaiseNotification("数据目录未改变", "选择的目录与当前数据目录相同", InfoBarSeverity.Warning, true, 2);
+                return;
+            }
+
+            string currentPath = AppDataController.DataRootPath;
+
+            StackPanel content = new StackPanel
+            {
+                Spacing = 8
+            };
+
+            content.Children.Add(new TextBlock
+            {
+                Text = "将把当前数据完整移动到新目录。移动完成并校验通过后，才会删除旧目录。",
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            content.Children.Add(new TextBlock
+            {
+                Text = "当前目录：\n" + currentPath,
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.75
+            });
+
+            content.Children.Add(new TextBlock
+            {
+                Text = "新目录：\n" + folderPath,
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.75
+            });
+
+            DialogManager.RaiseDialog(
+                XamlRoot,
+                "移动数据保存目录",
+                content,
+                true,
+                "开始移动",
+                async () => await ApplyDataRootMoveAsync(folderPath)
+            );
         }
 
-        private void uservice_JSG_Choose(object sender, RoutedEventArgs e)
+        private void Reset_DataRoot_Click(object sender, RoutedEventArgs e)
         {
-            Logging.Write("Selected update service: JSG", 0);
-            if (!isProgrammaticChange) { AppDataController.SetUpdateService(2); }
+            if (AppDataController.IsCurrentDataRoot(AppDataController.DefaultDataRootPath))
+            {
+                NotificationManager.RaiseNotification("当前已在使用默认数据目录", "", InfoBarSeverity.Warning, true, 2);
+                return;
+            }
+
+            string currentPath = AppDataController.DataRootPath;
+            string defaultPath = AppDataController.DefaultDataRootPath;
+
+            StackPanel content = new StackPanel
+            {
+                Spacing = 8
+            };
+
+            content.Children.Add(new TextBlock
+            {
+                Text = "将把当前数据完整移动回默认目录。移动完成并校验通过后，才会删除旧目录。",
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            content.Children.Add(new TextBlock
+            {
+                Text = "当前目录：\n" + currentPath,
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.75
+            });
+
+            content.Children.Add(new TextBlock
+            {
+                Text = "默认目录：\n" + defaultPath,
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.75
+            });
+
+            DialogManager.RaiseDialog(
+                XamlRoot,
+                "恢复默认数据目录",
+                content,
+                true,
+                "开始移动",
+                async () => await ApplyDefaultDataRootMoveAsync()
+            );
         }
+
+        private void Open_DataRoot_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string dataRootPath = AppDataController.DataRootPath;
+                Directory.CreateDirectory(dataRootPath);
+                Process.Start("explorer.exe", "\"" + dataRootPath + "\"");
+            }
+            catch (Exception ex)
+            {
+                NotificationManager.RaiseNotification("打开数据目录失败", ex.Message, InfoBarSeverity.Error);
+            }
+        }
+
+        private void ShowDataRootLockedDialog(
+    IReadOnlyList<LockingProcessInfo> lockingProcesses,
+    IReadOnlyList<BlockedPathInfo> blockedPaths)
+        {
+            StackPanel content = new StackPanel
+            {
+                Spacing = 8
+            };
+
+            content.Children.Add(new TextBlock
+            {
+                Text = "检测到数据目录正在被占用。请关闭占用程序后再重试移动。",
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            if (lockingProcesses.Count > 0)
+            {
+                content.Children.Add(new TextBlock
+                {
+                    Text = "占用进程：",
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    Margin = new Thickness(0, 8, 0, 0)
+                });
+
+                foreach (LockingProcessInfo process in lockingProcesses.Take(10))
+                {
+                    string processText = process.DisplayName;
+
+                    if (!string.IsNullOrWhiteSpace(process.ExecutablePath))
+                    {
+                        processText += "\n" + process.ExecutablePath;
+                    }
+
+                    content.Children.Add(new TextBlock
+                    {
+                        Text = "• " + processText,
+                        TextWrapping = TextWrapping.Wrap,
+                        Opacity = 0.82
+                    });
+                }
+
+                if (lockingProcesses.Count > 10)
+                {
+                    content.Children.Add(new TextBlock
+                    {
+                        Text = $"还有 {lockingProcesses.Count - 10} 个进程未显示。",
+                        TextWrapping = TextWrapping.Wrap,
+                        Opacity = 0.65
+                    });
+                }
+            }
+
+            if (blockedPaths.Count > 0)
+            {
+                content.Children.Add(new TextBlock
+                {
+                    Text = "被占用目录：",
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    Margin = new Thickness(0, 8, 0, 0)
+                });
+
+                foreach (BlockedPathInfo blockedPath in blockedPaths.Take(10))
+                {
+                    content.Children.Add(new TextBlock
+                    {
+                        Text = "• " + blockedPath.DisplayName,
+                        TextWrapping = TextWrapping.Wrap,
+                        Opacity = 0.82
+                    });
+                }
+
+                if (blockedPaths.Count > 10)
+                {
+                    content.Children.Add(new TextBlock
+                    {
+                        Text = $"还有 {blockedPaths.Count - 10} 个目录未显示。",
+                        TextWrapping = TextWrapping.Wrap,
+                        Opacity = 0.65
+                    });
+                }
+            }
+
+            content.Children.Add(new TextBlock
+            {
+                Text = "如果是 CMD / PowerShell，请先切换到其他目录或关闭窗口。例如执行 cd /d C:\\ 后再重试。",
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.65,
+                Margin = new Thickness(0, 8, 0, 0)
+            });
+
+            DialogManager.RaiseDialog(
+                XamlRoot,
+                "数据目录被占用",
+                content,
+                false,
+                "关闭",
+                null
+            );
+        }
+
+        private async Task<bool> CheckDataRootLockedBeforeMoveAsync(params string[] paths)
+        {
+            DataRootLockCheckResult checkResult = null;
+
+            WaitOverlayManager.RaiseWaitOverlay(true, "正在检查数据目录占用", "正在检测是否有程序正在占用数据目录。", true, 0);
+
+            try
+            {
+                checkResult = await Task.Run(() => BuildDataRootLockCheckResult(paths));
+            }
+            catch (Exception ex)
+            {
+                Logging.Write($"Data root lock check failed: {ex.Message}", 2);
+                NotificationManager.RaiseNotification("目录占用检查失败", ex.Message, InfoBarSeverity.Error, true, 5);
+                return false;
+            }
+            finally
+            {
+                WaitOverlayManager.RaiseWaitOverlay(false);
+            }
+
+            if (checkResult == null || !checkResult.HasBlockedItems)
+            {
+                return true;
+            }
+            await Task.Delay(180);
+
+            NotificationManager.RaiseNotification("数据目录被占用", "已拦截移动操作，请查看占用详情。", InfoBarSeverity.Warning, true, 4);
+            await ShowDataRootLockedDialogAsync(checkResult.LockingProcesses, checkResult.BlockedPaths);
+
+            return false;
+        }
+
+        private DataRootLockCheckResult BuildDataRootLockCheckResult(params string[] paths)
+        {
+            Dictionary<int, LockingProcessInfo> processResult = new Dictionary<int, LockingProcessInfo>();
+            Dictionary<string, BlockedPathInfo> pathResult = new Dictionary<string, BlockedPathInfo>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (string path in paths)
+            {
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    continue;
+                }
+
+                if (!Directory.Exists(path) && !File.Exists(path))
+                {
+                    continue;
+                }
+
+                foreach (LockingProcessInfo process in DataRootLockDetector.FindLockingProcesses(path))
+                {
+                    processResult[process.ProcessId] = process;
+                }
+
+                foreach (BlockedPathInfo blockedPath in DataRootLockDetector.FindBlockedDirectoryPaths(path))
+                {
+                    pathResult[blockedPath.Path] = blockedPath;
+                }
+            }
+
+            return new DataRootLockCheckResult
+            {
+                LockingProcesses = processResult.Values
+                    .OrderBy(item => item.ProcessName)
+                    .ThenBy(item => item.ProcessId)
+                    .ToList(),
+
+                BlockedPaths = pathResult.Values
+                    .OrderBy(item => item.Path)
+                    .ToList()
+            };
+        }
+
+        private async Task ShowDataRootLockedDialogAsync(
+    IReadOnlyList<LockingProcessInfo> lockingProcesses,
+    IReadOnlyList<BlockedPathInfo> blockedPaths)
+        {
+            StackPanel contentPanel = new StackPanel
+            {
+                Spacing = 8
+            };
+
+            contentPanel.Children.Add(new TextBlock
+            {
+                Text = "检测到数据目录正在被占用，已取消本次移动。请关闭占用程序后再重试。",
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            if (lockingProcesses.Count > 0)
+            {
+                contentPanel.Children.Add(new TextBlock
+                {
+                    Text = "占用进程：",
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    Margin = new Thickness(0, 8, 0, 0)
+                });
+
+                foreach (LockingProcessInfo process in lockingProcesses.Take(12))
+                {
+                    string processText = process.DisplayName;
+
+                    if (!string.IsNullOrWhiteSpace(process.ExecutablePath))
+                    {
+                        processText += "\n" + process.ExecutablePath;
+                    }
+
+                    contentPanel.Children.Add(new TextBlock
+                    {
+                        Text = "• " + processText,
+                        TextWrapping = TextWrapping.Wrap,
+                        Opacity = 0.82
+                    });
+                }
+
+                if (lockingProcesses.Count > 12)
+                {
+                    contentPanel.Children.Add(new TextBlock
+                    {
+                        Text = $"还有 {lockingProcesses.Count - 12} 个进程未显示。",
+                        TextWrapping = TextWrapping.Wrap,
+                        Opacity = 0.65
+                    });
+                }
+            }
+
+            if (blockedPaths.Count > 0)
+            {
+                contentPanel.Children.Add(new TextBlock
+                {
+                    Text = "被占用目录：",
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    Margin = new Thickness(0, 8, 0, 0)
+                });
+
+                foreach (BlockedPathInfo blockedPath in blockedPaths.Take(12))
+                {
+                    contentPanel.Children.Add(new TextBlock
+                    {
+                        Text = "• " + blockedPath.DisplayName,
+                        TextWrapping = TextWrapping.Wrap,
+                        Opacity = 0.82
+                    });
+                }
+
+                if (blockedPaths.Count > 12)
+                {
+                    contentPanel.Children.Add(new TextBlock
+                    {
+                        Text = $"还有 {blockedPaths.Count - 12} 个目录未显示。",
+                        TextWrapping = TextWrapping.Wrap,
+                        Opacity = 0.65
+                    });
+                }
+            }
+
+            contentPanel.Children.Add(new TextBlock
+            {
+                Text = "如果是 CMD / PowerShell，请先切换到其他目录或关闭窗口。例如执行：cd /d C:\\",
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.65,
+                Margin = new Thickness(0, 8, 0, 0)
+            });
+
+            ScrollViewer scrollViewer = new ScrollViewer
+            {
+                Content = contentPanel,
+                MaxHeight = 420,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+
+            ContentDialog dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "数据目录被占用",
+                Content = scrollViewer,
+                CloseButtonText = "关闭",
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            try
+            {
+                await dialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                Logging.Write($"Show data root locked dialog failed: {ex.Message}", 2);
+
+                string fallbackMessage = BuildDataRootLockedFallbackMessage(lockingProcesses, blockedPaths);
+                NotificationManager.RaiseNotification("数据目录被占用", fallbackMessage, InfoBarSeverity.Warning, true, 8);
+            }
+        }
+
+        private string BuildDataRootLockedFallbackMessage(
+    IReadOnlyList<LockingProcessInfo> lockingProcesses,
+    IReadOnlyList<BlockedPathInfo> blockedPaths)
+        {
+            List<string> lines = new List<string>();
+
+            foreach (LockingProcessInfo process in lockingProcesses.Take(3))
+            {
+                lines.Add(process.DisplayName);
+            }
+
+            foreach (BlockedPathInfo blockedPath in blockedPaths.Take(3))
+            {
+                lines.Add(blockedPath.Path);
+            }
+
+            if (lines.Count == 0)
+            {
+                return "检测到数据目录被占用，请关闭相关程序后重试。";
+            }
+
+            return string.Join("\n", lines);
+        }
+
+
+        private async Task ApplyDataRootMoveAsync(string folderPath)
+        {
+            await MainView.PrepareCacheForDataRootMoveAsync();
+            string currentPath = AppDataController.DataRootPath;
+
+            bool canMove = await CheckDataRootLockedBeforeMoveAsync(currentPath, folderPath);
+            if (!canMove)
+            {
+                return;
+            }
+
+            WaitOverlayManager.RaiseWaitOverlay(true, "正在移动数据目录", "正在复制并校验数据\n请不要关闭 WaveTools", true, 0);
+
+            try
+            {
+                string errorMessage = null;
+                bool success = await Task.Run(() => AppDataController.MoveToCustomDataRoot(folderPath, out errorMessage));
+
+                if (!success)
+                {
+                    throw new InvalidOperationException(errorMessage ?? "移动数据目录失败");
+                }
+
+                LoadSettings();
+                NotificationManager.RaiseNotification("移动数据目录完成\n旧目录已在校验通过后删除", "", InfoBarSeverity.Success, true, 3);
+            }
+            catch (Exception ex)
+            {
+                NotificationManager.RaiseNotification("移动数据目录失败", ex.Message, InfoBarSeverity.Error);
+            }
+            finally
+            {
+                WaitOverlayManager.RaiseWaitOverlay(false);
+            }
+        }
+
+        private async Task ApplyDefaultDataRootMoveAsync()
+        {
+            await MainView.PrepareCacheForDataRootMoveAsync();
+            string currentPath = AppDataController.DataRootPath;
+            string defaultPath = AppDataController.DefaultDataRootPath;
+
+            bool canMove = await CheckDataRootLockedBeforeMoveAsync(currentPath, defaultPath);
+            if (!canMove)
+            {
+                return;
+            }
+
+            WaitOverlayManager.RaiseWaitOverlay(true, "正在恢复默认数据目录", "正在复制并校验数据\n请不要关闭 WaveTools", true, 0);
+
+            try
+            {
+                string errorMessage = null;
+                bool success = await Task.Run(() => AppDataController.MoveToDefaultDataRoot(out errorMessage));
+
+                if (!success)
+                {
+                    throw new InvalidOperationException(errorMessage ?? "恢复默认数据目录失败");
+                }
+
+                LoadSettings();
+                NotificationManager.RaiseNotification("数据目录已恢复\n旧目录已在校验通过后删除", "", InfoBarSeverity.Success, true, 3);
+            }
+            catch (Exception ex)
+            {
+                NotificationManager.RaiseNotification("恢复默认数据目录失败", ex.Message, InfoBarSeverity.Error);
+            }
+            finally
+            {
+                WaitOverlayManager.RaiseWaitOverlay(false);
+            }
+        }
+
+        private async Task<string> PickFolderAsync()
+        {
+            FolderPicker picker = new FolderPicker();
+            picker.FileTypeFilter.Add("*");
+            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+
+            IntPtr hwnd = IntPtr.Zero;
+            if (App.MainWindow != null)
+            {
+                hwnd = WindowNative.GetWindowHandle(App.MainWindow);
+            }
+
+            if (hwnd == IntPtr.Zero)
+            {
+                hwnd = CommonHelpers.FileHelpers.GetActiveWindow();
+            }
+
+            if (hwnd != IntPtr.Zero)
+            {
+                InitializeWithWindow.Initialize(picker, hwnd);
+            }
+
+            StorageFolder folder = await picker.PickSingleFolderAsync();
+            return folder?.Path;
+        }
+
+
+        private void StorageManagementHeader_Click(object sender, RoutedEventArgs e)
+        {
+            SetStorageManagementExpanded(!isStorageManagementExpanded);
+        }
+
+        private void SetStorageManagementExpanded(bool isExpanded)
+        {
+            if (storageManagementContentPanel == null)
+            {
+                isStorageManagementExpanded = isExpanded;
+                return;
+            }
+
+            if (isStorageManagementExpanded == isExpanded &&
+                storageManagementContentPanel.Visibility == (isExpanded ? Visibility.Visible : Visibility.Collapsed))
+            {
+                return;
+            }
+
+            storageManagementStoryboard?.Stop();
+            storageManagementStoryboard = null;
+
+            double fromHeight;
+            double toHeight;
+
+            if (isExpanded)
+            {
+                storageManagementContentPanel.Visibility = Visibility.Visible;
+                storageManagementContentPanel.IsHitTestVisible = true;
+
+                fromHeight = storageManagementContentPanel.MaxHeight;
+                if (double.IsInfinity(fromHeight) || double.IsNaN(fromHeight) || fromHeight <= 0)
+                {
+                    fromHeight = 0;
+                }
+
+                storageManagementContentPanel.MaxHeight = fromHeight;
+                toHeight = GetStorageManagementContentDesiredHeight();
+            }
+            else
+            {
+                storageManagementContentPanel.IsHitTestVisible = false;
+
+                fromHeight = storageManagementContentPanel.ActualHeight;
+                if (double.IsNaN(fromHeight) || fromHeight <= 0)
+                {
+                    fromHeight = GetStorageManagementContentDesiredHeight();
+                }
+
+                storageManagementContentPanel.MaxHeight = fromHeight;
+                toHeight = 0;
+            }
+
+            isStorageManagementExpanded = isExpanded;
+
+            TimeSpan layoutDuration = TimeSpan.FromMilliseconds(isExpanded ? 185 : 135);
+            TimeSpan visualDuration = TimeSpan.FromMilliseconds(isExpanded ? 150 : 110);
+
+            EasingFunctionBase layoutEasing = isExpanded
+                ? new ExponentialEase { Exponent = 7, EasingMode = EasingMode.EaseOut }
+                : new ExponentialEase { Exponent = 6, EasingMode = EasingMode.EaseIn };
+
+            EasingFunctionBase visualEasing = new CubicEase
+            {
+                EasingMode = isExpanded ? EasingMode.EaseOut : EasingMode.EaseIn
+            };
+
+            storageManagementStoryboard = new Storyboard();
+
+            AddDoubleAnimation(
+                storageManagementStoryboard,
+                storageManagementContentPanel,
+                "MaxHeight",
+                toHeight,
+                layoutDuration,
+                layoutEasing,
+                true);
+
+            AddDoubleAnimation(
+                storageManagementStoryboard,
+                storageManagementContentPanel,
+                "Opacity",
+                isExpanded ? 1 : 0,
+                visualDuration,
+                visualEasing,
+                false);
+
+            if (storageManagementContentTranslate != null)
+            {
+                AddDoubleAnimation(
+                    storageManagementStoryboard,
+                    storageManagementContentTranslate,
+                    "Y",
+                    isExpanded ? 0 : -10,
+                    visualDuration,
+                    visualEasing,
+                    false);
+            }
+
+            if (storageManagementChevronRotate != null)
+            {
+                AddDoubleAnimation(
+                    storageManagementStoryboard,
+                    storageManagementChevronRotate,
+                    "Angle",
+                    isExpanded ? 180 : 0,
+                    TimeSpan.FromMilliseconds(120),
+                    visualEasing,
+                    false);
+            }
+
+            storageManagementStoryboard.Completed += StorageManagementStoryboard_Completed;
+            storageManagementStoryboard.Begin();
+        }
+
+        private double GetStorageManagementContentDesiredHeight()
+        {
+            if (storageManagementContentPanel == null)
+            {
+                return 0;
+            }
+
+            double availableWidth = storageManagementContentPanel.ActualWidth;
+            if (double.IsNaN(availableWidth) || availableWidth <= 0)
+            {
+                availableWidth = ActualWidth;
+            }
+
+            if (double.IsNaN(availableWidth) || availableWidth <= 0)
+            {
+                availableWidth = 720;
+            }
+
+            double oldMaxHeight = storageManagementContentPanel.MaxHeight;
+            Visibility oldVisibility = storageManagementContentPanel.Visibility;
+
+            storageManagementContentPanel.Visibility = Visibility.Visible;
+            storageManagementContentPanel.MaxHeight = double.PositiveInfinity;
+            storageManagementContentPanel.Measure(new Size(availableWidth, double.PositiveInfinity));
+
+            double desiredHeight = Math.Ceiling(storageManagementContentPanel.DesiredSize.Height);
+
+            storageManagementContentPanel.MaxHeight = oldMaxHeight;
+            storageManagementContentPanel.Visibility = oldVisibility;
+
+            return Math.Max(1, desiredHeight);
+        }
+
+        private void AddDoubleAnimation(
+            Storyboard storyboard,
+            DependencyObject target,
+            string targetProperty,
+            double to,
+            TimeSpan duration,
+            EasingFunctionBase easingFunction,
+            bool enableDependentAnimation)
+        {
+            DoubleAnimation animation = new DoubleAnimation
+            {
+                To = to,
+                Duration = new Duration(duration),
+                EasingFunction = easingFunction,
+                EnableDependentAnimation = enableDependentAnimation
+            };
+
+            Storyboard.SetTarget(animation, target);
+            Storyboard.SetTargetProperty(animation, targetProperty);
+            storyboard.Children.Add(animation);
+        }
+
+        private void StorageManagementStoryboard_Completed(object sender, object e)
+        {
+            if (storageManagementContentPanel == null)
+            {
+                return;
+            }
+
+            if (!isStorageManagementExpanded)
+            {
+                storageManagementContentPanel.Visibility = Visibility.Collapsed;
+                storageManagementContentPanel.MaxHeight = 0;
+                storageManagementContentPanel.Opacity = 0;
+                storageManagementContentPanel.IsHitTestVisible = false;
+
+                if (storageManagementContentTranslate != null)
+                {
+                    storageManagementContentTranslate.Y = -10;
+                }
+            }
+            else
+            {
+                storageManagementContentPanel.Visibility = Visibility.Visible;
+                storageManagementContentPanel.MaxHeight = double.PositiveInfinity;
+                storageManagementContentPanel.Opacity = 1;
+                storageManagementContentPanel.IsHitTestVisible = true;
+
+                if (storageManagementContentTranslate != null)
+                {
+                    storageManagementContentTranslate.Y = 0;
+                }
+            }
+        }
+
+        private async Task RefreshStorageUsageAsync()
+        {
+            try
+            {
+                if (storageTotalSizeText != null)
+                {
+                    storageTotalSizeText.Text = "正在计算";
+                }
+
+                if (cacheUsageText != null)
+                {
+                    cacheUsageText.Text = "正在计算";
+                }
+
+                if (logsUsageText != null)
+                {
+                    logsUsageText.Text = "正在计算";
+                }
+
+                string cachePath = Path.Combine(AppDataController.DataRootPath, "Cache");
+                string logsPath = Path.Combine(AppDataController.DataRootPath, "Logs");
+
+                (long cacheSize, long logsSize) = await Task.Run(() =>
+                {
+                    long cache = GetDirectorySizeSafe(cachePath);
+                    long logs = GetDirectorySizeSafe(logsPath);
+                    return (cache, logs);
+                });
+
+                if (cacheUsageText != null)
+                {
+                    cacheUsageText.Text = FormatFileSize(cacheSize) + " · " + cachePath;
+                }
+
+                if (logsUsageText != null)
+                {
+                    logsUsageText.Text = FormatFileSize(logsSize) + " · " + logsPath;
+                }
+
+                if (storageTotalSizeText != null)
+                {
+                    storageTotalSizeText.Text = FormatFileSize(cacheSize + logsSize);
+                }
+
+                if (clearCacheButton != null)
+                {
+                    clearCacheButton.IsEnabled = Directory.Exists(cachePath) && cacheSize > 0;
+                }
+
+                if (clearLogsButton != null)
+                {
+                    clearLogsButton.IsEnabled = Directory.Exists(logsPath) && logsSize > 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.Write($"Refresh storage usage failed: {ex.Message}", 1);
+
+                if (storageTotalSizeText != null)
+                {
+                    storageTotalSizeText.Text = "计算失败";
+                }
+
+                if (cacheUsageText != null)
+                {
+                    cacheUsageText.Text = "缓存占用计算失败";
+                }
+
+                if (logsUsageText != null)
+                {
+                    logsUsageText.Text = "日志占用计算失败";
+                }
+            }
+        }
+
+        private static long GetDirectorySizeSafe(string directoryPath)
+        {
+            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+            {
+                return 0;
+            }
+
+            long totalSize = 0;
+            Stack<string> directories = new Stack<string>();
+            directories.Push(directoryPath);
+
+            while (directories.Count > 0)
+            {
+                string currentDirectory = directories.Pop();
+
+                string[] files = Array.Empty<string>();
+                try
+                {
+                    files = Directory.GetFiles(currentDirectory);
+                }
+                catch
+                {
+                }
+
+                foreach (string file in files)
+                {
+                    try
+                    {
+                        totalSize += new FileInfo(file).Length;
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                string[] subDirectories = Array.Empty<string>();
+                try
+                {
+                    subDirectories = Directory.GetDirectories(currentDirectory);
+                }
+                catch
+                {
+                }
+
+                foreach (string subDirectory in subDirectories)
+                {
+                    directories.Push(subDirectory);
+                }
+            }
+
+            return totalSize;
+        }
+
+        private static string FormatFileSize(long bytes)
+        {
+            if (bytes <= 0)
+            {
+                return "0 B";
+            }
+
+            string[] units = { "B", "KB", "MB", "GB", "TB" };
+            double value = bytes;
+            int unitIndex = 0;
+
+            while (value >= 1024 && unitIndex < units.Length - 1)
+            {
+                value /= 1024;
+                unitIndex++;
+            }
+
+            if (unitIndex == 0)
+            {
+                return bytes + " B";
+            }
+
+            return value.ToString("0.##") + " " + units[unitIndex];
+        }
+
+        private bool TryBeginStorageOperation()
+        {
+            if (!StorageOperationSemaphore.Wait(0))
+            {
+                NotificationManager.RaiseNotification(
+                    "清理任务正在运行",
+                    "请等待当前清理完成后再进行下一次清理。",
+                    InfoBarSeverity.Warning,
+                    true,
+                    3);
+                return false;
+            }
+
+            if (clearCacheButton != null)
+            {
+                clearCacheButton.IsEnabled = false;
+            }
+
+            if (clearLogsButton != null)
+            {
+                clearLogsButton.IsEnabled = false;
+            }
+
+            return true;
+        }
+
+        private async Task EndStorageOperationAsync()
+        {
+            try
+            {
+                await RefreshStorageUsageAsync();
+            }
+            finally
+            {
+                StorageOperationSemaphore.Release();
+            }
+        }
+
+        private void Clear_Cache_Click(object sender, RoutedEventArgs e)
+        {
+            DialogManager.RaiseDialog(
+                XamlRoot,
+                "清理缓存",
+                "将删除 Cache 目录中的临时缓存文件。首页背景、轮播图和资源图标会在需要时重新生成或重新下载。",
+                true,
+                "开始清理",
+                async () => await ClearCacheAsync()
+            );
+        }
+
+        private void Clear_Logs_Click(object sender, RoutedEventArgs e)
+        {
+            DialogManager.RaiseDialog(
+                XamlRoot,
+                "清理日志",
+                "将删除 Logs 目录中可释放的日志文件。当前正在写入的日志可能会被保留。",
+                true,
+                "开始清理",
+                async () => await ClearLogsAsync()
+            );
+        }
+
+        private async Task ClearCacheAsync()
+        {
+            if (!TryBeginStorageOperation())
+            {
+                return;
+            }
+
+            WaitOverlayManager.RaiseWaitOverlay(true, "正在清理缓存", "正在释放首页资源并清理 Cache 目录。", true, 0);
+
+            try
+            {
+                await MainView.PrepareCacheForDataRootMoveAsync();
+
+                string cachePath = Path.Combine(AppDataController.DataRootPath, "Cache");
+                ClearDirectoryResult result = await Task.Run(() => ClearDirectoryContents(cachePath));
+
+                if (result.FailedItems > 0)
+                {
+                    NotificationManager.RaiseNotification(
+                        "缓存已部分清理",
+                        $"已删除 {result.DeletedFiles} 个文件、{result.DeletedDirectories} 个目录，{result.FailedItems} 项被占用或无权限。",
+                        InfoBarSeverity.Warning,
+                        true,
+                        5);
+                    return;
+                }
+
+                NotificationManager.RaiseNotification(
+                    "缓存清理完成",
+                    $"已删除 {result.DeletedFiles} 个文件、{result.DeletedDirectories} 个目录。",
+                    InfoBarSeverity.Success,
+                    true,
+                    3);
+            }
+            catch (Exception ex)
+            {
+                NotificationManager.RaiseNotification("缓存清理失败", ex.Message, InfoBarSeverity.Error, true, 5);
+            }
+            finally
+            {
+                WaitOverlayManager.RaiseWaitOverlay(false);
+                await EndStorageOperationAsync();
+            }
+        }
+
+        private async Task ClearLogsAsync()
+        {
+            if (!TryBeginStorageOperation())
+            {
+                return;
+            }
+
+            WaitOverlayManager.RaiseWaitOverlay(true, "正在清理日志", "正在清理 Logs 目录中可释放的日志文件。", true, 0);
+
+            try
+            {
+                string logsPath = Path.Combine(AppDataController.DataRootPath, "Logs");
+                ClearDirectoryResult result = await Task.Run(() => ClearDirectoryContents(logsPath));
+
+                if (result.FailedItems > 0)
+                {
+                    NotificationManager.RaiseNotification(
+                        "日志已部分清理",
+                        $"已删除 {result.DeletedFiles} 个文件、{result.DeletedDirectories} 个目录，{result.FailedItems} 项正在使用中。",
+                        InfoBarSeverity.Warning,
+                        true,
+                        5);
+                    return;
+                }
+
+                NotificationManager.RaiseNotification(
+                    "日志清理完成",
+                    $"已删除 {result.DeletedFiles} 个文件、{result.DeletedDirectories} 个目录。",
+                    InfoBarSeverity.Success,
+                    true,
+                    3);
+            }
+            catch (Exception ex)
+            {
+                NotificationManager.RaiseNotification("日志清理失败", ex.Message, InfoBarSeverity.Error, true, 5);
+            }
+            finally
+            {
+                WaitOverlayManager.RaiseWaitOverlay(false);
+                await EndStorageOperationAsync();
+            }
+        }
+
+        private sealed class ClearDirectoryResult
+        {
+            public int DeletedFiles { get; set; }
+            public int DeletedDirectories { get; set; }
+            public int FailedItems { get; set; }
+        }
+
+        private static ClearDirectoryResult ClearDirectoryContents(string directoryPath)
+        {
+            ClearDirectoryResult result = new ClearDirectoryResult();
+
+            if (string.IsNullOrWhiteSpace(directoryPath))
+            {
+                return result;
+            }
+
+            Directory.CreateDirectory(directoryPath);
+
+            foreach (string file in SafeEnumerateFiles(directoryPath))
+            {
+                try
+                {
+                    File.SetAttributes(file, System.IO.FileAttributes.Normal);
+                    File.Delete(file);
+                    result.DeletedFiles++;
+                }
+                catch
+                {
+                    result.FailedItems++;
+                }
+            }
+
+            foreach (string directory in SafeEnumerateDirectories(directoryPath)
+                         .OrderByDescending(item => item.Length))
+            {
+                try
+                {
+                    if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                    {
+                        Directory.Delete(directory, false);
+                        result.DeletedDirectories++;
+                    }
+                }
+                catch
+                {
+                    result.FailedItems++;
+                }
+            }
+
+            Directory.CreateDirectory(directoryPath);
+            return result;
+        }
+
+        private static IEnumerable<string> SafeEnumerateFiles(string directoryPath)
+        {
+            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+            {
+                yield break;
+            }
+
+            Stack<string> directories = new Stack<string>();
+            directories.Push(directoryPath);
+
+            while (directories.Count > 0)
+            {
+                string currentDirectory = directories.Pop();
+
+                string[] files = Array.Empty<string>();
+                try
+                {
+                    files = Directory.GetFiles(currentDirectory);
+                }
+                catch
+                {
+                }
+
+                foreach (string file in files)
+                {
+                    yield return file;
+                }
+
+                string[] subDirectories = Array.Empty<string>();
+                try
+                {
+                    subDirectories = Directory.GetDirectories(currentDirectory);
+                }
+                catch
+                {
+                }
+
+                foreach (string subDirectory in subDirectories)
+                {
+                    directories.Push(subDirectory);
+                }
+            }
+        }
+
+        private static IEnumerable<string> SafeEnumerateDirectories(string directoryPath)
+        {
+            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+            {
+                yield break;
+            }
+
+            Stack<string> directories = new Stack<string>();
+            directories.Push(directoryPath);
+
+            while (directories.Count > 0)
+            {
+                string currentDirectory = directories.Pop();
+
+                string[] subDirectories = Array.Empty<string>();
+                try
+                {
+                    subDirectories = Directory.GetDirectories(currentDirectory);
+                }
+                catch
+                {
+                }
+
+                foreach (string subDirectory in subDirectories)
+                {
+                    yield return subDirectory;
+                    directories.Push(subDirectory);
+                }
+            }
+        }
+
 
         private async void Backup_Data(object sender, RoutedEventArgs e)
         {
             DateTime now = DateTime.Now;
             string formattedDate = now.ToString("yyyy_MM_dd_HH_mm_ss");
-            string userDocumentsFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             var suggestFileName = "WaveTools_Backup_" + formattedDate;
             var fileTypeChoices = new Dictionary<string, List<string>>
             {
@@ -391,7 +1620,7 @@ namespace WaveTools.Views
 
             if (filePath != null)
             {
-                string startPath = userDocumentsFolderPath + @"\JSG-LLC\WaveTools";
+                string startPath = AppDataController.DataRootPath;
                 string zipPath = filePath;
                 if (File.Exists(zipPath))
                 {
@@ -415,9 +1644,10 @@ namespace WaveTools.Views
 
             if (filePath != null)
             {
-                string userDocumentsFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
                 Task.Run(() => ClearAllData_NoClose(null, null, false)).Wait();
-                Task.Run(() => ZipFile.ExtractToDirectory(filePath, userDocumentsFolderPath + "\\JSG-LLC\\WaveTools\\")).Wait();
+                Directory.CreateDirectory(AppDataController.DataRootPath);
+                Task.Run(() => ZipFile.ExtractToDirectory(filePath, AppDataController.DataRootPath)).Wait();
+                AppDataController.ResetCache();
                 await ProcessRun.RestartApp();
             }
             else WaitOverlayManager.RaiseWaitOverlay(false);
@@ -455,7 +1685,7 @@ namespace WaveTools.Views
         }
         private string Script = "window.onload = function() { console.log('ZenlessTools_Cathced!'); setInterval(() => { if (window.closed) { window.chrome.webview.postMessage('window_closed'); } }, 100); (function() { const originalFunction = window.linkClicked; window.linkClicked = function(...args) { window.chrome.webview.postMessage('announcements_link_clicked'); return originalFunction.apply(this, args); }; })(); const root = document.getElementById('root'); root.style.backgroundRepeat = 'no-repeat'; root.style.backgroundPosition = 'left bottom'; root.style.backgroundSize = 'cover'; const bodyHome = document.getElementsByClassName('home__body--pc'); if (bodyHome.length > 0) { bodyHome[0].style.transform = 'scale(1.27, 1.32)'; } const home = document.getElementsByClassName('home'); if (home.length > 0) { home[0].style.background = 'transparent'; } const closeBtn = document.getElementsByClassName('home__close'); if (closeBtn.length > 0) { closeBtn[0].onclick = function() { window.close(); }; } document.addEventListener('click', function(event) { let target = event.target; while (target && target.tagName !== 'A') { target = target.parentNode; } if (target && target.tagName === 'A') { const href = target.getAttribute('href'); const jsRegex = /javascript:miHoYoGameJSSDK\\.openInBrowser\\('([^']+)'\\)/; const jsMatch = href.match(jsRegex); if (jsMatch && jsMatch[1]) { event.preventDefault(); linkClicked(); return; } const uniwebviewPrefix = 'uniwebview://open_url?url='; if (href.startsWith(uniwebviewPrefix)) { event.preventDefault(); const newUrl = decodeURIComponent(href.replace(uniwebviewPrefix, '')); linkClicked(); return; } } }); };";
 
-        private void Debug_Panic_Click(object sender, RoutedEventArgs e) 
+        private void Debug_Panic_Click(object sender, RoutedEventArgs e)
         {
             Logging.Write("Triggering global exception handler test", 0);
             throw new Exception("全局异常处理测试");
@@ -465,7 +1695,7 @@ namespace WaveTools.Views
         {
             Notification_Test_Count++;
             Logging.Write("Triggering notification test", 0);
-            NotificationManager.RaiseNotification("测试通知",$"这是一条测试通知{Notification_Test_Count}", InfoBarSeverity.Success, false, 1);
+            NotificationManager.RaiseNotification("测试通知", $"这是一条测试通知{Notification_Test_Count}", InfoBarSeverity.Success, false, 1);
         }
 
         private async void Debug_WaitOverlayManager_Test(object sender, RoutedEventArgs e)
@@ -546,6 +1776,20 @@ namespace WaveTools.Views
             }
 
             return parent as NavigationView;
+        }
+
+        private sealed class DataRootLockCheckResult
+        {
+            public List<LockingProcessInfo> LockingProcesses { get; set; } = new List<LockingProcessInfo>();
+            public List<BlockedPathInfo> BlockedPaths { get; set; } = new List<BlockedPathInfo>();
+
+            public bool HasBlockedItems
+            {
+                get
+                {
+                    return LockingProcesses.Count > 0 || BlockedPaths.Count > 0;
+                }
+            }
         }
     }
 }

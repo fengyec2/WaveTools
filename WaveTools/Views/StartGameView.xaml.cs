@@ -19,19 +19,21 @@
 // For more information, please refer to <https://www.gnu.org/licenses/gpl-3.0.html>
 
 
+using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using System;
 using System.Diagnostics;
-using Microsoft.UI.Dispatching;
-using WaveTools.Depend;
-using WaveTools.Views.SGViews;
+using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
-using static WaveTools.App;
-using Windows.Foundation;
-using System.IO;
+using WaveTools.Depend;
+using WaveTools.Views.SGViews;
 using WaveTools.Views.ToolViews;
+using Windows.Foundation;
+using static WaveTools.App;
 
 namespace WaveTools.Views
 {
@@ -41,6 +43,11 @@ namespace WaveTools.Views
         private DispatcherQueueTimer dispatcherTimer_Game;
         private DispatcherQueueTimer dispatcherTimer_Launcher;
 
+        private bool isViewUnloaded;
+        private int loadVersion;
+        private bool lastGameRunning;
+        private bool lastLauncherRunning;
+
         public static string GS = null;
         public static string SelectedUID = null;
         public static string SelectedName = null;
@@ -48,7 +55,7 @@ namespace WaveTools.Views
         public StartGameView()
         {
             this.InitializeComponent();
-            Logging.Write("Switch to StartGameView",0);
+            Logging.Write("Switch to StartGameView", 0);
             this.Loaded += StartGameView_Loaded;
             this.Unloaded += OnUnloaded;
 
@@ -56,6 +63,7 @@ namespace WaveTools.Views
             InitializeDispatcherQueue();
             // 初始化并启动定时器
             InitializeTimers();
+            ApplyCurrentProcessState();
 
         }
 
@@ -83,37 +91,124 @@ namespace WaveTools.Views
 
         private async void StartGameView_Loaded(object sender, RoutedEventArgs e)
         {
+            isViewUnloaded = false;
+            ApplyCurrentProcessState();
+
             LoadDataAsync();
+            ApplyCurrentProcessState();
+
             await GetPromptAsync();
+        }
+
+        private bool HasValidGamePath()
+        {
+            string gamePath = AppDataController.GetGamePath();
+            return !string.IsNullOrEmpty(gamePath) && !gamePath.Contains("Null");
+        }
+
+        private bool IsGameProcessRunning()
+        {
+            return Process.GetProcessesByName("Wuthering Waves").Length > 0;
+        }
+
+        private bool IsLauncherProcessRunning()
+        {
+            return Process.GetProcessesByName("launcher").Length > 0;
+        }
+
+        private bool IsCurrentViewActive(int version)
+        {
+            return !isViewUnloaded && version == loadVersion;
+        }
+
+        private void ApplyCurrentProcessState()
+        {
+            if (isViewUnloaded) return;
+
+            ApplyGameProcessState(IsGameProcessRunning());
+            ApplyLauncherProcessState(IsLauncherProcessRunning());
+        }
+
+        private void ApplyGameProcessState(bool isRunning)
+        {
+            lastGameRunning = isRunning;
+
+            if (isRunning)
+            {
+                startGame.Visibility = Visibility.Collapsed;
+                gameRunning.Visibility = Visibility.Visible;
+
+                Frame_GraphicSettingView_Loading.Visibility = Visibility.Collapsed;
+                Frame_AccountView_Loading.Visibility = Visibility.Collapsed;
+
+                Frame_GraphicSettingView_Launched_Disable.Visibility = Visibility.Visible;
+                Frame_GraphicSettingView_Launched_Disable_Title.Text = "鸣潮正在运行";
+                Frame_GraphicSettingView_Launched_Disable_Subtitle.Text = "游戏运行时无法修改画质";
+
+                Frame_AccountView_Launched_Disable.Visibility = Visibility.Visible;
+                Frame_AccountView_Launched_Disable_Title.Text = "鸣潮正在运行";
+                Frame_AccountView_Launched_Disable_Subtitle.Text = "游戏运行时无法切换账号";
+            }
+            else
+            {
+                startGame.Visibility = Visibility.Visible;
+                gameRunning.Visibility = Visibility.Collapsed;
+
+                Frame_GraphicSettingView_Launched_Disable.Visibility = Visibility.Collapsed;
+                Frame_AccountView_Launched_Disable.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void ApplyLauncherProcessState(bool isRunning)
+        {
+            lastLauncherRunning = isRunning;
+
+            startLauncher.Visibility = isRunning ? Visibility.Collapsed : Visibility.Visible;
+            launcherRunning.Visibility = isRunning ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void LoadDataAsync(string mode = null)
         {
-            if (AppDataController.GetGamePath() != null)
-            {
-                string GamePath = AppDataController.GetGamePath();
-                Logging.Write("GamePath: " + GamePath, 0);
-                if (!string.IsNullOrEmpty(GamePath) && GamePath.Contains("Null"))
-                {
-                    UpdateUIElementsVisibility(0);
-                }
-                else
-                {
-                    UpdateUIElementsVisibility(1);
-                    CheckIsWeGameVersion(false);
-                    if (AppDataController.GetDX11Enable() == 1) dx11Enable.IsChecked = true;
-                    if (mode == null)
-                    {
-                        CheckProcess_Account();
-                        CheckProcess_Graphics();
-                    }
-                    else if (mode == "Graphics") CheckProcess_Graphics();
-                    else if (mode == "Account") CheckProcess_Account();
-                }
-            }
-            else
+            if (isViewUnloaded) return;
+
+            int currentLoadVersion = ++loadVersion;
+
+            if (!HasValidGamePath())
             {
                 UpdateUIElementsVisibility(0);
+                ApplyCurrentProcessState();
+                return;
+            }
+
+            string GamePath = AppDataController.GetGamePath();
+            Logging.Write("GamePath: " + GamePath, 0);
+
+            UpdateUIElementsVisibility(1);
+            CheckIsWeGameVersion(false);
+
+            if (AppDataController.GetDX11Enable() == 1)
+            {
+                dx11Enable.IsChecked = true;
+            }
+
+            ApplyCurrentProcessState();
+            if (IsGameProcessRunning())
+            {
+                return;
+            }
+
+            if (mode == null)
+            {
+                CheckProcess_Account(currentLoadVersion);
+                CheckProcess_Graphics(currentLoadVersion);
+            }
+            else if (mode == "Graphics")
+            {
+                CheckProcess_Graphics(currentLoadVersion);
+            }
+            else if (mode == "Account")
+            {
+                CheckProcess_Account(currentLoadVersion);
             }
         }
 
@@ -122,17 +217,38 @@ namespace WaveTools.Views
             string filePath = await CommonHelpers.FileHelpers.OpenFile(".exe");
             if (filePath != null && filePath.Contains("Wuthering Waves.exe"))
             {
-                // 更新为新的存储管理机制
                 AppDataController.SetGamePath(filePath);
+
+                int currentLoadVersion = ++loadVersion;
+
                 UpdateUIElementsVisibility(1);
-                CheckProcess_Graphics();
-                CheckProcess_Account();
                 CheckIsWeGameVersion(true);
+                ApplyCurrentProcessState();
+
+                if (!IsGameProcessRunning())
+                {
+                    CheckProcess_Graphics(currentLoadVersion);
+                    CheckProcess_Account(currentLoadVersion);
+                }
             }
             else
             {
                 ValidGameFile.Subtitle = "选择正确的Wuthering Waves.exe\n通常位于[游戏根目录\\Wuthering Waves Game\\Wuthering Waves.exe]";
                 ValidGameFile.IsOpen = true;
+            }
+        }
+
+        private void GamePathAction_Click(object sender, RoutedEventArgs e)
+        {
+            string gamePath = AppDataController.GetGamePath();
+
+            if (string.IsNullOrEmpty(gamePath) || gamePath.Contains("Null"))
+            {
+                SelectGame(sender, e);
+            }
+            else
+            {
+                RMGameLocation(sender, e);
             }
         }
 
@@ -155,7 +271,11 @@ namespace WaveTools.Views
         public void AdvancedSettings(object sender, RoutedEventArgs e)
         {
             StackPanel advancedPanel = new StackPanel();
-            advancedPanel.Children.Add(new TextBlock { Text = "游戏启动参数" });
+            advancedPanel.Children.Add(new TextBlock
+            {
+                Text = "游戏启动参数",
+                Margin = new Thickness(0, 0, 0, 8)
+            });
             TextBox gameArgs = new TextBox();
             gameArgs.Text = AppDataController.GetGameParameter();
             advancedPanel.Children.Add(gameArgs);
@@ -189,27 +309,90 @@ namespace WaveTools.Views
 
         private void UpdateUIElementsVisibility(int status)
         {
-            if (status == 0) 
+            if (status == 0)
             {
-                selectGame.IsEnabled = true;
-                selectGame.Visibility = Visibility.Visible;
-                rmGame.Visibility = Visibility.Collapsed;
-                advancedSettings.Visibility = Visibility.Collapsed;
-                rmGame.IsEnabled = false;
+                gamePathAction.IsEnabled = true;
+                gamePathActionText.Text = "选择游戏本体";
+                gamePathActionIcon.Glyph = "\uE8E5";
+                UpdateGamePathActionButtonStyle(false);
+
+                advancedSettings.Visibility = Visibility.Visible;
+                reloadFrame.Visibility = Visibility.Visible;
+                dx11Enable.Visibility = Visibility.Visible;
+
+                advancedSettings.IsEnabled = false;
+                reloadFrame.IsEnabled = false;
+                dx11Enable.IsEnabled = false;
+
                 startGame.IsEnabled = false;
                 startLauncher.IsEnabled = false;
-                SGFrame.Visibility = Visibility.Collapsed;
+
+                SGFrame.Visibility = Visibility.Visible;
+
+                Frame_GraphicSettingView_NoGamePath_Disable.Visibility = Visibility.Visible;
+                Frame_AccountView_NoGamePath_Disable.Visibility = Visibility.Visible;
             }
             else
             {
-                selectGame.IsEnabled = false;
-                selectGame.Visibility = Visibility.Collapsed;
-                rmGame.Visibility = Visibility.Visible;
+                gamePathAction.IsEnabled = true;
+                gamePathActionText.Text = "清除路径";
+                gamePathActionIcon.Glyph = "\uE74D";
+                UpdateGamePathActionButtonStyle(true);
+
                 advancedSettings.Visibility = Visibility.Visible;
-                rmGame.IsEnabled = true;
+                reloadFrame.Visibility = Visibility.Visible;
+                dx11Enable.Visibility = Visibility.Visible;
+
+                advancedSettings.IsEnabled = true;
+                reloadFrame.IsEnabled = true;
+                dx11Enable.IsEnabled = true;
+
                 startGame.IsEnabled = true;
                 startLauncher.IsEnabled = true;
+
                 SGFrame.Visibility = Visibility.Visible;
+
+                Frame_GraphicSettingView_NoGamePath_Disable.Visibility = Visibility.Collapsed;
+                Frame_AccountView_NoGamePath_Disable.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void UpdateGamePathActionButtonStyle(bool hasGamePath)
+        {
+            if (hasGamePath)
+            {
+                gamePathAction.Resources.Remove("ButtonBackground");
+                gamePathAction.Resources.Remove("ButtonBackgroundPointerOver");
+                gamePathAction.Resources.Remove("ButtonBackgroundPressed");
+                gamePathAction.Resources.Remove("ButtonForeground");
+                gamePathAction.Resources.Remove("ButtonForegroundPointerOver");
+                gamePathAction.Resources.Remove("ButtonForegroundPressed");
+                gamePathAction.Resources.Remove("ButtonBorderBrush");
+                gamePathAction.Resources.Remove("ButtonBorderBrushPointerOver");
+                gamePathAction.Resources.Remove("ButtonBorderBrushPressed");
+
+                gamePathAction.ClearValue(Button.BackgroundProperty);
+                gamePathAction.ClearValue(Button.ForegroundProperty);
+                gamePathAction.ClearValue(Button.BorderBrushProperty);
+            }
+            else
+            {
+                var normalBlue = new SolidColorBrush(ColorHelper.FromArgb(255, 0, 98, 165));
+                var hoverBlue = new SolidColorBrush(ColorHelper.FromArgb(255, 0, 90, 158));
+                var pressedBlue = new SolidColorBrush(ColorHelper.FromArgb(255, 0, 69, 120));
+                var white = new SolidColorBrush(Colors.White);
+                gamePathAction.Background = normalBlue;
+                gamePathAction.Foreground = white;
+                gamePathAction.BorderBrush = normalBlue;
+                gamePathAction.Resources["ButtonBackgroundPointerOver"] = hoverBlue;
+                gamePathAction.Resources["ButtonForegroundPointerOver"] = white;
+                gamePathAction.Resources["ButtonBorderBrushPointerOver"] = hoverBlue;
+                gamePathAction.Resources["ButtonBackgroundPressed"] = pressedBlue;
+                gamePathAction.Resources["ButtonForegroundPressed"] = white;
+                gamePathAction.Resources["ButtonBorderBrushPressed"] = pressedBlue;
+                gamePathAction.Resources["ButtonBackground"] = normalBlue;
+                gamePathAction.Resources["ButtonForeground"] = white;
+                gamePathAction.Resources["ButtonBorderBrush"] = normalBlue;
             }
         }
 
@@ -234,7 +417,7 @@ namespace WaveTools.Views
                     NoSelectedAccount.IsOpen = true;
                 }
             }
-            
+
         }
 
         public void StartLauncher(TeachingTip sender, object args)
@@ -246,51 +429,43 @@ namespace WaveTools.Views
         // 定时器回调函数，检查进程是否正在运行
         private void CheckProcess_Game(DispatcherQueueTimer timer, object e)
         {
-            if (Process.GetProcessesByName("Wuthering Waves").Length > 0)
+            if (isViewUnloaded) return;
+
+            bool wasRunning = lastGameRunning;
+            bool isRunning = IsGameProcessRunning();
+
+            ApplyGameProcessState(isRunning);
+
+            if (wasRunning && !isRunning && HasValidGamePath())
             {
-                // 进程正在运行
-                startGame.Visibility = Visibility.Collapsed;
-                gameRunning.Visibility = Visibility.Visible;
-                Frame_GraphicSettingView_Launched_Disable.Visibility = Visibility.Visible;
-                Frame_GraphicSettingView_Launched_Disable_Title.Text = "鸣潮正在运行";
-                Frame_GraphicSettingView_Launched_Disable_Subtitle.Text = "游戏运行时无法修改画质";
-                Frame_AccountView_Launched_Disable.Visibility = Visibility.Visible;
-                Frame_AccountView_Launched_Disable_Title.Text = "鸣潮正在运行";
-                Frame_AccountView_Launched_Disable_Subtitle.Text = "游戏运行时无法切换账号";
-            }
-            else
-            {
-                // 进程未运行
-                startGame.Visibility = Visibility.Visible;
-                gameRunning.Visibility = Visibility.Collapsed;
-                Frame_GraphicSettingView_Launched_Disable.Visibility = Visibility.Collapsed;
-                Frame_AccountView_Launched_Disable.Visibility = Visibility.Collapsed;
+                LoadDataAsync();
             }
         }
 
         private void CheckProcess_Launcher(DispatcherQueueTimer timer, object e)
         {
-            if (Process.GetProcessesByName("launcher").Length > 0)
-            {
-                // 进程正在运行
-                startLauncher.Visibility = Visibility.Collapsed;
-                launcherRunning.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                // 进程未运行
-                startLauncher.Visibility = Visibility.Visible;
-                launcherRunning.Visibility = Visibility.Collapsed;
-            }
+            if (isViewUnloaded) return;
+            ApplyLauncherProcessState(IsLauncherProcessRunning());
         }
 
-        private async void CheckProcess_Graphics()
+        private async void CheckProcess_Graphics(int currentLoadVersion)
         {
+            if (!IsCurrentViewActive(currentLoadVersion)) return;
+
+            if (IsGameProcessRunning())
+            {
+                ApplyGameProcessState(true);
+                return;
+            }
+
             Frame_GraphicSettingView_Loading.Visibility = Visibility.Visible;
             Frame_GraphicSettingView.Content = null;
-            
+
             if (IsWaveToolsHelperRequireUpdate)
             {
+                if (!IsCurrentViewActive(currentLoadVersion)) return;
+
+                Frame_GraphicSettingView_Loading.Visibility = Visibility.Collapsed;
                 Frame_GraphicSettingView_Disable.Visibility = Visibility.Visible;
                 Frame_GraphicSettingView_Disable_Title.Text = "WaveToolsHelper需要更新";
                 Frame_GraphicSettingView_Disable_Subtitle.Text = "请更新后再使用";
@@ -300,6 +475,16 @@ namespace WaveTools.Views
                 try
                 {
                     string GSValue = await ProcessRun.WaveToolsHelperAsync($"/GetGS {AppDataController.GetGamePathForHelper()}");
+
+                    if (!IsCurrentViewActive(currentLoadVersion)) return;
+
+                    if (IsGameProcessRunning())
+                    {
+                        Frame_GraphicSettingView_Loading.Visibility = Visibility.Collapsed;
+                        ApplyGameProcessState(true);
+                        return;
+                    }
+
                     if (!GSValue.Contains("ImageQuality"))
                     {
                         GraphicSelect.IsEnabled = false;
@@ -319,19 +504,30 @@ namespace WaveTools.Views
                 }
                 catch (Exception ex)
                 {
-                    Logging.Write($"Exception in CheckProcess_Graphics: {ex.Message}", 3, "CheckProcess_Graphics");
+                    if (!isViewUnloaded)
+                    {
+                        Logging.Write($"Exception in CheckProcess_Graphics: {ex.Message}", 3, "CheckProcess_Graphics");
+                    }
                 }
             }
         }
 
-        private void CheckProcess_Account()
+        private void CheckProcess_Account(int currentLoadVersion)
         {
+            if (!IsCurrentViewActive(currentLoadVersion)) return;
+
+            if (IsGameProcessRunning())
+            {
+                ApplyGameProcessState(true);
+                return;
+            }
+
             if (AppDataController.GetAccountChangeMode() != 1)
             {
                 AccountChange_Off_Btn.Visibility = Visibility.Collapsed;
                 Frame_AccountView_Usage_Disable.Visibility = Visibility.Visible;
             }
-            else 
+            else
             {
                 AccountChange_Off_Btn.Visibility = Visibility.Visible;
                 Frame_AccountView_Usage_Disable.Visibility = Visibility.Collapsed;
@@ -372,6 +568,7 @@ namespace WaveTools.Views
                 if (response.IsSuccessStatusCode)
                 {
                     string jsonData = await response.Content.ReadAsStringAsync();
+                    if (isViewUnloaded) return;
                     prompt.Text = jsonData;
                 }
             }
@@ -383,6 +580,9 @@ namespace WaveTools.Views
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
+            isViewUnloaded = true;
+            loadVersion++;
+
             if (dispatcherTimer_Game != null)
             {
                 dispatcherTimer_Game.Stop();

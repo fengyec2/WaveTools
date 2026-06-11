@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2024, JamXi JSG-LLC.
+Ôªø// Copyright (c) 2021-2024, JamXi JSG-LLC.
 // All rights reserved.
 
 // This file is part of WaveTools.
@@ -20,100 +20,180 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
 using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Newtonsoft.Json;
 using WaveTools.Depend;
 using WaveTools.Views.ToolViews;
+using Windows.UI;
 using static WaveTools.App;
 
 namespace WaveTools.Views.GachaViews
 {
     public sealed partial class TempGachaView : Page
     {
+        private const string WuwaAssetsApiUrl = "https://cdn.jamsg.cn/?get=wuwa-assets";
+        private static readonly HttpClient _httpClient = new HttpClient();
+        private static WuwaAssetsCacheModel _wuwaAssetsCache;
+        private static DateTime _wuwaAssetsCacheLoadedAt = DateTime.MinValue;
+
+        private bool _isLoadingData;
+        private int _loadDataToken;
+
         public TempGachaView()
         {
             this.InitializeComponent();
             Logging.Write("Switch to TempGachaView", 0);
-            LoadData();
+            _ = RefreshDataAsync();
         }
 
-        private async void LoadData()
+        public async Task RefreshDataAsync()
         {
-            Logging.Write("Starting LoadData method", 0);
-            string selectedUID = GachaView.selectedUid;
-            int selectedCardPoolId = GachaView.selectedCardPoolId;
-            Logging.Write($"Selected UID: {selectedUID}, Selected Card Pool ID: {selectedCardPoolId}", 0);
-
-            string recordsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "JSG-LLC", "WaveTools", "GachaRecords");
-            string filePath = Path.Combine(recordsDirectory, $"{selectedUID}.json");
-            Logging.Write($"Records Directory: {recordsDirectory}, File Path: {filePath}", 0);
-
-            if (!File.Exists(filePath))
+            if (_isLoadingData)
             {
-                Logging.Write("File not found: " + filePath, 1);
-                Console.WriteLine("’“≤ªµΩUIDµƒ≥Èø®º«¬ºŒƒº˛");
                 return;
             }
 
-            Logging.Write("Reading file content", 0);
-            string jsonContent = await File.ReadAllTextAsync(filePath);
-            Logging.Write("Deserializing JSON content", 0);
-            var gachaData = JsonConvert.DeserializeObject<GachaModel.GachaData>(jsonContent);
-            var records = gachaData.List.Where(pool => pool.CardPoolId == selectedCardPoolId).SelectMany(pool => pool.Records).ToList();
-            Logging.Write($"Total records found: {records.Count}", 0);
+            int currentLoadToken = ++_loadDataToken;
+            _isLoadingData = true;
 
-            if (records == null || records.Count == 0)
+            try
             {
-                Logging.Write("Current card pool has no records", 1);
-                return;
+                ClearDisplayedData();
+                await LoadDataAsync(currentLoadToken);
             }
-            bool hasAnyRecordWithId = records.Any(r => !string.IsNullOrWhiteSpace(r.Id));
-
-            if (!hasAnyRecordWithId)
+            finally
             {
-                Logging.Write("Current records are legacy format without id field. Generate temporary display id.", 1);
-
-                GenerateTemporaryDisplayIds(records, selectedCardPoolId);
-
-                NotificationManager.RaiseNotification(
-                    $"UID:{selectedUID}µƒ≥Èø®º«¬º «æ…∞Ê±æ∏Ò Ω",
-                    "“—¡Ÿ ±ºÊ»›œ‘ ææ…∞Ê≥Èø®º«¬º°£\nΩ®“È÷Æ∫Û∏¸–¬≥Èø®º«¬º“‘…˝º∂Œ™–¬∞Ê∏Ò Ω°£",
-                    InfoBarSeverity.Warning,
-                    false,
-                    5
-                );
+                if (currentLoadToken == _loadDataToken)
+                {
+                    _isLoadingData = false;
+                }
             }
-            else
+        }
+
+        private async Task LoadDataAsync(int currentLoadToken)
+        {
+            try
             {
-                GenerateMissingTemporaryDisplayIds(records, selectedCardPoolId);
+                Logging.Write("Starting LoadData method", 0);
+                string selectedUID = GachaView.selectedUid;
+                int selectedCardPoolId = GachaView.selectedCardPoolId;
+                Logging.Write($"Selected UID: {selectedUID}, Selected Card Pool ID: {selectedCardPoolId}", 0);
+
+                if (string.IsNullOrWhiteSpace(selectedUID) || selectedCardPoolId <= 0)
+                {
+                    Logging.Write("LoadData skipped because selected UID or card pool ID is empty", 1);
+                    return;
+                }
+
+                string recordsDirectory = AppDataController.GetDataPath("GachaRecords");
+                string filePath = Path.Combine(recordsDirectory, $"{selectedUID}.json");
+                Logging.Write($"Records Directory: {recordsDirectory}, File Path: {filePath}", 0);
+
+                if (!File.Exists(filePath))
+                {
+                    Logging.Write("File not found: " + filePath, 1);
+                    Console.WriteLine("Êâæ‰∏çÂà∞UIDÁöÑÊäΩÂç°ËÆ∞ÂΩïÊñá‰ª∂");
+                    return;
+                }
+
+                Logging.Write("Reading file content", 0);
+                string jsonContent = await File.ReadAllTextAsync(filePath);
+
+                if (currentLoadToken != _loadDataToken)
+                {
+                    return;
+                }
+
+                Logging.Write("Deserializing JSON content", 0);
+                var gachaData = JsonConvert.DeserializeObject<GachaModel.GachaData>(jsonContent);
+
+                if (gachaData?.List == null)
+                {
+                    Logging.Write("Gacha data is empty or invalid", 1);
+                    return;
+                }
+
+                var records = gachaData.List
+                    .Where(pool => pool.CardPoolId == selectedCardPoolId && pool.Records != null)
+                    .SelectMany(pool => pool.Records)
+                    .ToList();
+
+                Logging.Write($"Total records found: {records.Count}", 0);
+
+                if (records.Count == 0)
+                {
+                    Logging.Write("Current card pool has no records", 1);
+                    return;
+                }
+
+                bool hasAnyRecordWithId = records.Any(r => !string.IsNullOrWhiteSpace(r.Id));
+
+                if (!hasAnyRecordWithId)
+                {
+                    Logging.Write("Current records are legacy format without id field. Generate temporary display id.", 1);
+
+                    GenerateTemporaryDisplayIds(records, selectedCardPoolId);
+
+                    NotificationManager.RaiseNotification(
+                        $"UID:{selectedUID}ÁöÑÊäΩÂç°ËÆ∞ÂΩïÊòØÊóßÁâàÊú¨Ê†ºÂºè",
+                        "Â∑≤‰∏¥Êó∂ÂÖºÂÆπÊòæÁ§∫ÊóßÁâàÊäΩÂç°ËÆ∞ÂΩï„ÄÇ\nÂª∫ËÆÆ‰πãÂêéÊõ¥Êñ∞ÊäΩÂç°ËÆ∞ÂΩï‰ª•ÂçáÁ∫ß‰∏∫Êñ∞ÁâàÊ†ºÂºè„ÄÇ",
+                        InfoBarSeverity.Warning,
+                        false,
+                        5
+                    );
+                }
+                else
+                {
+                    GenerateMissingTemporaryDisplayIds(records, selectedCardPoolId);
+                }
+
+                if (currentLoadToken != _loadDataToken)
+                {
+                    return;
+                }
+
+                // Á≠õÈÄâÂá∫ÂõõÊòüÂíå‰∫îÊòüÁöÑËÆ∞ÂΩï
+                var rank4Records = records.Where(r => r.QualityLevel == 4).ToList();
+                var rank5Records = records.Where(r => r.QualityLevel == 5).ToList();
+                Logging.Write($"4-star records count: {rank4Records.Count}, 5-star records count: {rank5Records.Count}", 0);
+
+                // ÊòæÁ§∫ËÆ∞ÂΩïËØ¶ÊÉÖ
+                DisplayGachaDetails(gachaData, rank4Records, rank5Records, selectedCardPoolId, GachaView.cardPoolInfo);
+
+                // ÊòæÁ§∫ÊäΩÂç°ËØ¶ÊÉÖ
+                DisplayGachaInfo(records, selectedCardPoolId);
+
+                // ÊòæÁ§∫ÊäΩÂç°ËÆ∞ÂΩï
+                DisplayGachaRecords(records);
+                Logging.Write("LoadData method finished", 0);
             }
+            catch (Exception ex)
+            {
+                Logging.Write($"LoadData failed: {ex.Message}", 2);
+                NotificationManager.RaiseNotification("ÊäΩÂç°ËØ¶ÊÉÖÂà∑Êñ∞Â§±Ë¥•", ex.Message, InfoBarSeverity.Error, false, 5);
+            }
+        }
 
-            // …∏—°≥ˆÀƒ–«∫ÕŒÂ–«µƒº«¬º
-            var rank4Records = records.Where(r => r.QualityLevel == 4).ToList();
-            var rank5Records = records.Where(r => r.QualityLevel == 5).ToList();
-            Logging.Write($"4-star records count: {rank4Records.Count}, 5-star records count: {rank5Records.Count}", 0);
-
-            // ∞¥√˚≥∆Ω¯––∑÷◊È≤¢º∆À„√ø∏ˆ∑÷◊È÷–µƒº«¬º ˝¡ø
-            var rank4Grouped = rank4Records.GroupBy(r => r.Name).Select(g => new GachaModel.GroupedRecord { Name = g.Key, Count = g.Count() }).ToList();
-            var rank5Grouped = rank5Records.GroupBy(r => r.Name).Select(g => new GachaModel.GroupedRecord { Name = g.Key, Count = g.Count() }).ToList();
-            Logging.Write("Grouped records by name", 0);
-
-            // œ‘ æº«¬ºœÍ«È
-            DisplayGachaDetails(gachaData, rank4Records, rank5Records, selectedCardPoolId, GachaView.cardPoolInfo);
-
-            // œ‘ æ≥Èø®œÍ«È
-            DisplayGachaInfo(records, selectedCardPoolId);
-
-            // œ‘ æ≥Èø®º«¬º
-            DisplayGachaRecords(records);
-            Logging.Write("LoadData method finished", 0);
+        private void ClearDisplayedData()
+        {
+            Gacha_Panel.Children.Clear();
+            GachaInfo_List.ItemsSource = null;
+            GachaRecords_List.ItemsSource = null;
+            GachaInfo_List_Disable.Visibility = Visibility.Collapsed;
+            Gacha_UID.Text = "UID";
+            GachaInfo_SinceLast5Star.Text = "SinceLast5Star";
+            GachaRecords_Count.Text = "Count";
         }
 
         private void GenerateTemporaryDisplayIds(List<GachaModel.GachaRecord> records, int cardPoolId)
@@ -248,23 +328,95 @@ namespace WaveTools.Views.GachaViews
             Logging.Write("Displaying gacha info", 0);
             var selectedCardPool = GachaView.cardPoolInfo.CardPools.FirstOrDefault(cp => cp.CardPoolId == selectedCardPoolId);
 
-            var rank5Records = records.Where(r => r.QualityLevel == 5)
-                                       .Select(r => new
-                                       {
-                                           r.Name,
-                                           Count = CalculateCount(records, r.Id, 5),
-                                           Pity = CalculatePity(records, r.Name, 5, selectedCardPoolId, GachaView.cardPoolInfo),
-                                           PityVisibility = (bool)selectedCardPool.isPityEnable ? Visibility.Collapsed : Visibility.Collapsed
-                                       }).ToList();
-            if (rank5Records.Count == 0) GachaInfo_List_Disable.Visibility = Visibility.Visible;
+            var rank5SourceRecords = records.Where(r => r.QualityLevel == 5).ToList();
+
+            if (rank5SourceRecords.Count == 0)
+            {
+                GachaInfo_List_Disable.Visibility = Visibility.Visible;
+                GachaInfo_List.ItemsSource = null;
+                return;
+            }
+
+            GachaInfo_List_Disable.Visibility = Visibility.Collapsed;
+
+            var rank5Records = rank5SourceRecords
+                .Select(record => new GachaInfoDisplayItem
+                {
+                    ResourceId = record.ResourceId,
+                    ResourceType = record.ResourceType,
+                    Name = record.Name,
+                    Count = CalculateCount(records, record.Id, 5),
+                    Pity = CalculatePity(records, record.Name, 5, selectedCardPoolId, GachaView.cardPoolInfo),
+                    PityVisibility = selectedCardPool != null && selectedCardPool.isPityEnable == true
+                        ? Visibility.Collapsed
+                        : Visibility.Collapsed
+                })
+                .ToList();
 
             GachaInfo_List.ItemsSource = rank5Records;
-            Logging.Write("Finished displaying gacha info", 0);
+
+            _ = LoadGachaInfoIconsAsync(rank5Records, _loadDataToken);
+
+            Logging.Write("Finished displaying gacha info base content", 0);
+        }
+
+        private async Task LoadGachaInfoIconsAsync(List<GachaInfoDisplayItem> items, int loadToken)
+        {
+            if (items == null || items.Count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                await EnsureWuwaAssetsCacheAsync();
+
+                if (loadToken != _loadDataToken)
+                {
+                    return;
+                }
+
+                foreach (var item in items)
+                {
+                    if (loadToken != _loadDataToken)
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        BitmapImage iconSource = await GetGachaItemIconAsync(item.ResourceId, item.Name, item.ResourceType);
+
+                        if (loadToken != _loadDataToken)
+                        {
+                            return;
+                        }
+
+                        item.IconSource = iconSource;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logging.Write($"Load icon failed for {item?.Name}: {ex.Message}", 1);
+                        if (item != null)
+                        {
+                            item.IconSource = null;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.Write($"Load gacha info icons failed: {ex.Message}", 1);
+
+                foreach (var item in items)
+                {
+                    item.IconSource = null;
+                }
+            }
         }
 
         private string CalculateCount(List<GachaModel.GachaRecord> records, string id, int qualityLevel)
         {
-            Logging.Write("Calculating count since last target star", 0);
             int countSinceLastTargetStar = 1;
             bool foundTargetStar = false;
             for (int i = records.Count - 1; i >= 0; i--)
@@ -286,7 +438,7 @@ namespace WaveTools.Views.GachaViews
             }
             if (!foundTargetStar)
             {
-                return "Œ¥’“µΩ";
+                return "Êú™ÊâæÂà∞";
             }
 
             Logging.Write($"Count since last target star: {countSinceLastTargetStar}", 0);
@@ -296,19 +448,18 @@ namespace WaveTools.Views.GachaViews
 
         private string CalculatePity(List<GachaModel.GachaRecord> records, string name, int qualityLevel, int selectedCardPoolId, GachaModel.CardPoolInfo cardPoolInfo)
         {
-            Logging.Write("Calculating pity", 0);
             var selectedCardPool = cardPoolInfo.CardPools.FirstOrDefault(cp => cp.CardPoolId == selectedCardPoolId);
-            var specialNames = new List<string> { "Œ¨¿ÔƒŒ", "∞≤ø…", "ø®ø®¬ﬁ", "¡Ë—Ù", "º¯–ƒ" };
+            var specialNames = new List<string> { "Áª¥ÈáåÂ•à", "ÂÆâÂèØ", "Âç°Âç°ÁΩó", "ÂáåÈò≥", "Èâ¥ÂøÉ" };
 
             if (specialNames.Contains(name))
             {
                 if ((bool)!selectedCardPool.isPityEnable) return "";
-                Logging.Write("Pity result: Õ·¡À", 0);
-                return "Õ·¡À";
+                // Logging.Write("Pity result: Ê≠™‰∫Ü", 0);
+                return "Ê≠™‰∫Ü";
             }
             else
             {
-                Logging.Write("Pity result: √ªÕ·", 0);
+                // Logging.Write("Pity result: Ê≤°Ê≠™", 0);
                 return "";
             }
         }
@@ -318,15 +469,15 @@ namespace WaveTools.Views.GachaViews
             var intervals = new List<int>();
             int countSinceLastStar = 0;
 
-            // µπ–Ú±È¿˙º«¬º
+            // ÂÄíÂ∫èÈÅçÂéÜËÆ∞ÂΩï
             foreach (var record in records.AsEnumerable().Reverse())
             {
-                countSinceLastStar++; // √ø¥Œµ¸¥˙∂ºµ›‘ˆº∆ ˝∆˜
+                countSinceLastStar++; // ÊØèÊ¨°Ëø≠‰ª£ÈÉΩÈÄíÂ¢ûËÆ°Êï∞Âô®
 
                 if (record.QualityLevel == qualityLevel)
                 {
-                    intervals.Add(countSinceLastStar); // Ω´º∆ ˝∆˜µƒ÷µÃÌº”µΩº‰∏Ù¡–±Ì÷–
-                    countSinceLastStar = 0; // ÷ÿ÷√º∆ ˝∆˜
+                    intervals.Add(countSinceLastStar); // Â∞ÜËÆ°Êï∞Âô®ÁöÑÂÄºÊ∑ªÂä†Âà∞Èó¥ÈöîÂàóË°®‰∏≠
+                    countSinceLastStar = 0; // ÈáçÁΩÆËÆ°Êï∞Âô®
                 }
             }
 
@@ -386,120 +537,457 @@ namespace WaveTools.Views.GachaViews
             }
 
 
-            // º∆À„Àƒ–«∫ÕŒÂ–«µƒº‰∏Ù
+            // ËÆ°ÁÆóÂõõÊòüÂíå‰∫îÊòüÁöÑÈó¥Èöî
             var fourStarIntervals = CalculateIntervals(selectedRecords, 4);
             var fiveStarIntervals = CalculateIntervals(selectedRecords, 5);
 
-            // º∆À„∆Ωæ˘÷µ
-            string averageDraws4Star = fourStarIntervals.Count > 0 ? (fourStarIntervals.Average()).ToString("F2") : "°ﬁ";
-            string averageDraws5Star = fiveStarIntervals.Count > 0 ? (fiveStarIntervals.Average()).ToString("F2") : "°ﬁ";
+            // ËÆ°ÁÆóÂπ≥ÂùáÂÄº
+            string averageDraws4Star = fourStarIntervals.Count > 0 ? (fourStarIntervals.Average()).ToString("F2") : "‚àû";
+            string averageDraws5Star = fiveStarIntervals.Count > 0 ? (fiveStarIntervals.Average()).ToString("F2") : "‚àû";
 
             Gacha_UID.Text = gachaData.Info.Uid;
-            GachaRecords_Count.Text = "π≤" + selectedRecords.Count() + "≥È";
-            GachaInfo_SinceLast5Star.Text = $"µÊ¡À{countSinceLast5Star}∑¢";
-
-            var basicInfoPanel = CreateDetailBorder();
-            var stackPanelBasicInfo = new StackPanel();
-            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"UID: {gachaData.Info.Uid}", FontWeight = FontWeights.Bold });
-            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"◊‹º∆≥È ˝: {selectedRecords.Count}" });
-            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"ŒÂ–«≥Èø®¥Œ ˝: {rank5Records.Count}" });
-            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"Àƒ–«≥Èø®¥Œ ˝: {rank4Records.Count}" });
-            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"‘§º∆ π”√–«…˘: {selectedRecords.Count * 160}" });
-            basicInfoPanel.Child = stackPanelBasicInfo;
-            contentPanel.Children.Add(basicInfoPanel);
-
-            var detailInfoPanel = CreateDetailBorder();
-            var stackPanelDetailInfo = new StackPanel();
-            stackPanelDetailInfo.Children.Add(new TextBlock { Text = "œÍœ∏Õ≥º∆", FontWeight = FontWeights.Bold });
-
-            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"ŒÂ–«∆Ωæ˘≥È ˝: {averageDraws5Star}≥È" });
-            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"Àƒ–«∆Ωæ˘≥È ˝: {averageDraws4Star}≥È" });
-
-            string rate4Star = rank4Records.Count > 0 ? (rank4Records.Count / (double)selectedRecords.Count * 100).ToString("F2") + "%" : "°ﬁ";
-            string rate5Star = rank5Records.Count > 0 ? (rank5Records.Count / (double)selectedRecords.Count * 100).ToString("F2") + "%" : "°ﬁ";
-
-            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"ŒÂ–«ªÒ»°¬ : {rate5Star}" });
-            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"Àƒ–«ªÒ»°¬ : {rate4Star}" });
-
-            if (rank5Records.Any())
-            {
-                stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"◊ÓΩ¸ŒÂ–«: {rank5Records.First().Time}" });
-            }
-            else
-            {
-                stackPanelDetailInfo.Children.Add(new TextBlock { Text = "◊ÓΩ¸ŒÂ–«: °ﬁ" });
-            }
-
-            if (rank4Records.Any())
-            {
-                stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"◊ÓΩ¸Àƒ–«: {rank4Records.First().Time}" });
-            }
-            else
-            {
-                stackPanelDetailInfo.Children.Add(new TextBlock { Text = "◊ÓΩ¸Àƒ–«: °ﬁ" });
-            }
-
-            detailInfoPanel.Child = stackPanelDetailInfo;
-            contentPanel.Children.Add(detailInfoPanel);
-
-            // ¥¥Ω®ŒÂ–«µÊ¥Œ ˝ø®∆¨
-            var borderFiveStar = CreateDetailBorder();
-            var stackPanelFiveStar = new StackPanel();
-            stackPanelFiveStar.Children.Add(new TextBlock { Text = $"æ‡¿Î…œ“ª∏ˆŒÂ–«“—æ≠µÊ¡À{countSinceLast5Star}∑¢", FontWeight = FontWeights.Bold });
+            GachaRecords_Count.Text = "ÂÖ±" + selectedRecords.Count() + "ÊäΩ";
+            GachaInfo_SinceLast5Star.Text = $"Âû´‰∫Ü{countSinceLast5Star}Âèë";
 
             var selectedCardPool = cardPoolInfo.CardPools.FirstOrDefault(cp => cp.CardPoolId == selectedCardPoolId);
+
+            string rate4Star = rank4Records.Count > 0
+                ? (rank4Records.Count / (double)selectedRecords.Count * 100).ToString("F2") + "%"
+                : "‚àû";
+
+            string rate5Star = rank5Records.Count > 0
+                ? (rank5Records.Count / (double)selectedRecords.Count * 100).ToString("F2") + "%"
+                : "‚àû";
+
+            string latest5StarTime = rank5Records.Any() ? rank5Records.First().Time : "‚àû";
+            string latest4StarTime = rank4Records.Any() ? rank4Records.First().Time : "‚àû";
+
+            string poolName = selectedCardPool?.CardPoolType ?? $"Âç°Ê±† {selectedCardPoolId}";
+
+            contentPanel.Children.Add(CreateOverviewCard(
+                poolName,
+                selectedRecords.Count,
+                selectedRecords.Count * 160,
+                latest5StarTime,
+                latest4StarTime
+            ));
+
             if (selectedCardPool != null && selectedCardPool.FiveStarPity.HasValue)
             {
-                var progressBar5 = CreateProgressBar(countSinceLast5Star, selectedCardPool.FiveStarPity.Value);
-                stackPanelFiveStar.Children.Add(progressBar5);
-                stackPanelFiveStar.Children.Add(new TextBlock { Text = $"±£µ◊{selectedCardPool.FiveStarPity.Value}∑¢", FontSize = 12, Foreground = new SolidColorBrush(Colors.Gray) });
+                contentPanel.Children.Add(CreatePityCard(
+                    "‰∫îÊòü‰øùÂ∫ïËøõÂ∫¶",
+                    countSinceLast5Star,
+                    selectedCardPool.FiveStarPity.Value,
+                    $"Ë∑ùÁ¶ª‰∏ä‰∏Ä‰∏™‰∫îÊòüÂ∑≤ÁªèÂû´‰∫Ü {countSinceLast5Star} Âèë",
+                    ColorHelper.FromArgb(255, 204, 156, 92)
+                ));
             }
-            borderFiveStar.Child = stackPanelFiveStar;
-            contentPanel.Children.Add(borderFiveStar);
-
-            // ¥¥Ω®Àƒ–«µÊ¥Œ ˝ø®∆¨
-            var borderFourStar = CreateDetailBorder();
-            var stackPanelFourStar = new StackPanel();
-            stackPanelFourStar.Children.Add(new TextBlock { Text = $"æ‡¿Î…œ“ª∏ˆÀƒ–«“—æ≠≥È¡À{countSinceLast4Star}∑¢", FontWeight = FontWeights.Bold });
 
             if (selectedCardPool != null && selectedCardPool.FourStarPity.HasValue)
             {
-                var progressBar4 = CreateProgressBar(countSinceLast4Star, selectedCardPool.FourStarPity.Value);
-                stackPanelFourStar.Children.Add(progressBar4);
-                stackPanelFourStar.Children.Add(new TextBlock { Text = $"±£µ◊{selectedCardPool.FourStarPity.Value}∑¢", FontSize = 12, Foreground = new SolidColorBrush(Colors.Gray) });
+                contentPanel.Children.Add(CreatePityCard(
+                    "ÂõõÊòü‰øùÂ∫ïËøõÂ∫¶",
+                    countSinceLast4Star,
+                    selectedCardPool.FourStarPity.Value,
+                    $"Ë∑ùÁ¶ª‰∏ä‰∏Ä‰∏™ÂõõÊòüÂ∑≤ÁªèÊäΩ‰∫Ü {countSinceLast4Star} Âèë",
+                    ColorHelper.FromArgb(255, 152, 120, 196)
+                ));
             }
-            borderFourStar.Child = stackPanelFourStar;
-            contentPanel.Children.Add(borderFourStar);
+
+            var statGrid = CreateStatGrid(
+                CreateStatCard("‰∫îÊòüÊï∞Èáè", $"{rank5Records.Count}"),
+                CreateStatCard("ÂõõÊòüÊï∞Èáè", $"{rank4Records.Count}"),
+                CreateStatCard("‰∫îÊòüËé∑ÂèñÁéá", rate5Star),
+                CreateStatCard("ÂõõÊòüËé∑ÂèñÁéá", rate4Star),
+                CreateStatCard("‰∫îÊòüÂπ≥Âùá", $"{averageDraws5Star} ÊäΩ"),
+                CreateStatCard("ÂõõÊòüÂπ≥Âùá", $"{averageDraws4Star} ÊäΩ")
+            );
+
+            contentPanel.Children.Add(statGrid);
 
             scrollView.Content = contentPanel;
             Gacha_Panel.Children.Add(scrollView);
             Logging.Write("Finished displaying gacha details", 0);
         }
 
-
-
-        private Border CreateDetailBorder()
+        private Border CreatePityCard(string title, int current, int maximum, string subtitle, Color accentColor)
         {
-            return new Border
+            var border = CreateDetailBorder(237);
+
+            var root = new StackPanel
             {
-                Padding = new Thickness(10),
-                Margin = new Thickness(0, 4, 0, 4),
-                BorderBrush = new SolidColorBrush(Colors.Gray),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8)
+                Spacing = 8
             };
-        }
 
-        private ProgressBar CreateProgressBar(int value, int maximum)
-        {
-            return new ProgressBar
+            var titleRow = new Grid();
+
+            titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var titleText = new TextBlock
+            {
+                Text = title,
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 14
+            };
+
+            var countText = new TextBlock
+            {
+                Text = $"{current}/{maximum}",
+                FontWeight = FontWeights.Bold,
+                FontSize = 14,
+                Foreground = new SolidColorBrush(accentColor)
+            };
+
+            Grid.SetColumn(titleText, 0);
+            Grid.SetColumn(countText, 1);
+
+            titleRow.Children.Add(titleText);
+            titleRow.Children.Add(countText);
+
+            var progressBar = new ProgressBar
             {
                 Minimum = 0,
                 Maximum = maximum,
-                Value = value,
-                Height = 12
+                Value = Math.Min(current, maximum),
+                Height = 8,
+                CornerRadius = new CornerRadius(4)
+            };
+
+            var subtitleText = new TextBlock
+            {
+                Text = subtitle,
+                FontSize = 12,
+                Opacity = 0.65,
+                TextWrapping = TextWrapping.WrapWholeWords
+            };
+
+            root.Children.Add(titleRow);
+            root.Children.Add(progressBar);
+            root.Children.Add(subtitleText);
+
+            border.Child = root;
+            return border;
+        }
+
+        private Border CreateOverviewCard(
+            string poolName,
+            int totalCount,
+            int astriteCount,
+            string latest5StarTime,
+            string latest4StarTime)
+        {
+            var border = CreateDetailBorder(237);
+
+            var root = new Grid
+            {
+                ColumnSpacing = 12
+            };
+
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var main = new StackPanel
+            {
+                Spacing = 6
+            };
+
+            main.Children.Add(new TextBlock
+            {
+                Text = poolName,
+                FontSize = 12,
+                Opacity = 0.65,
+                TextWrapping = TextWrapping.WrapWholeWords
+            });
+
+            main.Children.Add(new TextBlock
+            {
+                Text = $"ÂÖ± {totalCount} ÊäΩ",
+                FontSize = 24,
+                FontWeight = FontWeights.Bold
+            });
+
+            main.Children.Add(new TextBlock
+            {
+                Text = $"È¢ÑËÆ°Ê∂àËÄó {astriteCount} ÊòüÂ£∞",
+                FontSize = 12,
+                Opacity = 0.7
+            });
+
+            main.Children.Add(new TextBlock
+            {
+                Text = $"ÊúÄËøë‰∫îÊòüÔºö{latest5StarTime}",
+                FontSize = 11,
+                Opacity = 0.55,
+                TextWrapping = TextWrapping.WrapWholeWords
+            });
+
+            main.Children.Add(new TextBlock
+            {
+                Text = $"ÊúÄËøëÂõõÊòüÔºö{latest4StarTime}",
+                FontSize = 11,
+                Opacity = 0.55,
+                TextWrapping = TextWrapping.WrapWholeWords
+            });
+
+            Grid.SetColumn(main, 0);
+            root.Children.Add(main);
+
+            border.Child = root;
+            return border;
+        }
+
+        private Border CreateStatCard(string title, string value)
+        {
+            return new Border
+            {
+                Padding = new Thickness(12, 10, 12, 10),
+                Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+                BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(10),
+                Child = new StackPanel
+                {
+                    Spacing = 4,
+                    Children =
+            {
+                new TextBlock
+                {
+                    Text = title,
+                    FontSize = 11,
+                    Opacity = 0.65
+                },
+                new TextBlock
+                {
+                    Text = value,
+                    FontSize = 17,
+                    FontWeight = FontWeights.Bold,
+                    TextWrapping = TextWrapping.WrapWholeWords
+                }
+            }
+                }
             };
         }
+
+        private Grid CreateStatGrid(params Border[] cards)
+        {
+            var grid = new Grid
+            {
+                ColumnSpacing = 8,
+                RowSpacing = 8,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            for (int i = 0; i < cards.Length && i < 6; i++)
+            {
+                Grid.SetColumn(cards[i], i % 2);
+                Grid.SetRow(cards[i], i / 2);
+                grid.Children.Add(cards[i]);
+            }
+
+            return grid;
+        }
+
+        private async Task EnsureWuwaAssetsCacheAsync()
+        {
+            if (_wuwaAssetsCache != null && DateTime.Now - _wuwaAssetsCacheLoadedAt < TimeSpan.FromHours(12))
+            {
+                return;
+            }
+
+            try
+            {
+                string cacheRoot = Path.Combine(AppDataController.GetDataPath("Cache"), "WuwaAssets");
+                Directory.CreateDirectory(cacheRoot);
+                string cacheFilePath = Path.Combine(cacheRoot, "wuwa-assets.json");
+
+                bool shouldRequestRemote = !File.Exists(cacheFilePath) || DateTime.Now - File.GetLastWriteTime(cacheFilePath) > TimeSpan.FromHours(12);
+
+                if (shouldRequestRemote)
+                {
+                    Logging.Write("Downloading wuwa assets index", 0);
+                    string remoteJson = await _httpClient.GetStringAsync(WuwaAssetsApiUrl);
+                    await File.WriteAllTextAsync(cacheFilePath, remoteJson);
+                }
+
+                string json = await File.ReadAllTextAsync(cacheFilePath);
+                _wuwaAssetsCache = JsonConvert.DeserializeObject<WuwaAssetsCacheModel>(json) ?? new WuwaAssetsCacheModel();
+                _wuwaAssetsCacheLoadedAt = DateTime.Now;
+            }
+            catch (Exception ex)
+            {
+                Logging.Write($"Load wuwa assets index failed: {ex.Message}", 1);
+
+                try
+                {
+                    string cacheRoot = Path.Combine(AppDataController.GetDataPath("Cache"), "WuwaAssets");
+                    string cacheFilePath = Path.Combine(cacheRoot, "wuwa-assets.json");
+                    if (File.Exists(cacheFilePath))
+                    {
+                        string json = await File.ReadAllTextAsync(cacheFilePath);
+                        _wuwaAssetsCache = JsonConvert.DeserializeObject<WuwaAssetsCacheModel>(json) ?? new WuwaAssetsCacheModel();
+                        _wuwaAssetsCacheLoadedAt = DateTime.Now;
+                    }
+                }
+                catch (Exception fallbackEx)
+                {
+                    Logging.Write($"Load local wuwa assets index failed: {fallbackEx.Message}", 1);
+                    _wuwaAssetsCache ??= new WuwaAssetsCacheModel();
+                }
+            }
+        }
+
+        private WuwaAssetItem FindWuwaAssetItem(string resourceId, string resourceType)
+        {
+            if (_wuwaAssetsCache == null || string.IsNullOrWhiteSpace(resourceId))
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(resourceType))
+            {
+                if (resourceType.Contains("Ê≠¶Âô®") && _wuwaAssetsCache.weapon != null && _wuwaAssetsCache.weapon.TryGetValue(resourceId, out var weaponItemByType))
+                {
+                    return weaponItemByType;
+                }
+
+                if ((resourceType.Contains("ËßíËâ≤") || resourceType.Contains("ÂÖ±È∏£ËÄÖ")) && _wuwaAssetsCache.role != null && _wuwaAssetsCache.role.TryGetValue(resourceId, out var roleItemByType))
+                {
+                    return roleItemByType;
+                }
+            }
+
+            if (_wuwaAssetsCache.role != null && _wuwaAssetsCache.role.TryGetValue(resourceId, out var roleItem))
+            {
+                return roleItem;
+            }
+
+            if (_wuwaAssetsCache.weapon != null && _wuwaAssetsCache.weapon.TryGetValue(resourceId, out var weaponItem))
+            {
+                return weaponItem;
+            }
+
+            return null;
+        }
+
+        private async Task<BitmapImage> GetGachaItemIconAsync(string resourceId, string name, string resourceType)
+        {
+            try
+            {
+                var assetItem = FindWuwaAssetItem(resourceId, resourceType);
+                if (assetItem == null || string.IsNullOrWhiteSpace(assetItem.icon))
+                {
+                    Logging.Write($"Icon not found for {name}, resourceId: {resourceId}", 1);
+                    return null;
+                }
+
+                string cacheRoot = Path.Combine(AppDataController.GetDataPath("Cache"), "WuwaAssets", "icons");
+                Directory.CreateDirectory(cacheRoot);
+
+                string extension = Path.GetExtension(new Uri(assetItem.icon).AbsolutePath);
+                if (string.IsNullOrWhiteSpace(extension))
+                {
+                    extension = ".png";
+                }
+
+                string fileName = $"{resourceId}{extension}";
+                string cacheFilePath = Path.Combine(cacheRoot, fileName);
+
+                if (!File.Exists(cacheFilePath) || new FileInfo(cacheFilePath).Length == 0)
+                {
+                    Logging.Write($"Downloading gacha icon: {assetItem.icon}", 0);
+                    byte[] bytes = await _httpClient.GetByteArrayAsync(assetItem.icon);
+                    await File.WriteAllBytesAsync(cacheFilePath, bytes);
+                }
+
+                return new BitmapImage(new Uri(cacheFilePath));
+            }
+            catch (Exception ex)
+            {
+                Logging.Write($"Get icon failed for {name}: {ex.Message}", 1);
+                return null;
+            }
+        }
+
+        private Border CreateDetailBorder(double? width = null)
+        {
+            return new Border
+            {
+                Width = width ?? double.NaN,
+                Padding = new Thickness(14),
+                Margin = new Thickness(0, 0, 0, 10),
+                Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+                BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(10),
+                HorizontalAlignment = width.HasValue ? HorizontalAlignment.Left : HorizontalAlignment.Stretch
+            };
+        }
+    }
+
+    public class GachaInfoDisplayItem : INotifyPropertyChanged
+    {
+        private BitmapImage _iconSource;
+
+        public string ResourceId { get; set; }
+        public string ResourceType { get; set; }
+        public string Name { get; set; }
+        public string Count { get; set; }
+        public string Pity { get; set; }
+        public Visibility PityVisibility { get; set; }
+
+        public BitmapImage IconSource
+        {
+            get => _iconSource;
+            set
+            {
+                if (_iconSource == value)
+                {
+                    return;
+                }
+
+                _iconSource = value;
+                OnPropertyChanged(nameof(IconSource));
+                OnPropertyChanged(nameof(IsIconVisible));
+                OnPropertyChanged(nameof(IsPlaceholderVisible));
+            }
+        }
+
+        public bool IsIconVisible => IconSource != null;
+
+        public bool IsPlaceholderVisible => IconSource == null;
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    public class WuwaAssetsCacheModel
+    {
+        public Dictionary<string, WuwaAssetItem> weapon { get; set; } = new Dictionary<string, WuwaAssetItem>();
+        public Dictionary<string, WuwaAssetItem> role { get; set; } = new Dictionary<string, WuwaAssetItem>();
+    }
+
+    public class WuwaAssetItem
+    {
+        public int id { get; set; }
+        public string name { get; set; }
+        public int rank { get; set; }
+        public int type { get; set; }
+        public string icon { get; set; }
+        public string acronym { get; set; }
+        public bool isPreview { get; set; }
+        public bool isNew { get; set; }
+        public int priority { get; set; }
     }
 
     public class RankTypeToBackgroundColorConverter : IValueConverter
@@ -536,30 +1024,145 @@ namespace WaveTools.Views.GachaViews
         }
     }
 
+
+    public class BooleanToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, string language)
+        {
+            return value is bool boolValue && boolValue ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+        {
+            return value is Visibility visibility && visibility == Visibility.Visible;
+        }
+    }
+
+    internal static class GachaCountColorThemeHelper
+    {
+        private const int GreenNode = 1;
+        private const int GreenHoldNode = 30;
+        private const int OrangeNode = 60;
+        private const int PinkNode = 80;
+
+        public static bool IsDarkTheme()
+        {
+            int dayNight = AppDataController.GetDayNight();
+
+            if (dayNight == 1)
+            {
+                return false;
+            }
+
+            if (dayNight == 2)
+            {
+                return true;
+            }
+
+            var uiSettings = new Windows.UI.ViewManagement.UISettings();
+            var foreground = uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Foreground);
+
+            return foreground.R > 128 && foreground.G > 128 && foreground.B > 128;
+        }
+
+        public static bool TryGetCount(object value, out int count)
+        {
+            if (value is int intValue)
+            {
+                count = intValue;
+                return true;
+            }
+
+            if (value is string countString && int.TryParse(countString, out count))
+            {
+                return true;
+            }
+
+            count = 0;
+            return false;
+        }
+
+        public static Color GetCountColor(int count, bool isProgressColor, bool isDarkTheme)
+        {
+            count = Math.Clamp(count, GreenNode, PinkNode);
+
+            Color green;
+            Color orange;
+            Color pink;
+
+            if (isDarkTheme)
+            {
+                if (isProgressColor)
+                {
+                    green = Color.FromArgb(120, 92, 156, 118);
+                    orange = Color.FromArgb(120, 190, 132, 72);
+                    pink = Color.FromArgb(120, 190, 86, 86);
+                }
+                else
+                {
+                    green = Color.FromArgb(255, 58, 108, 78);
+                    orange = Color.FromArgb(255, 148, 98, 54);
+                    pink = Color.FromArgb(255, 142, 68, 68);
+                }
+            }
+            else
+            {
+                if (isProgressColor)
+                {
+                    green = Color.FromArgb(255, 55, 151, 101);
+                    orange = Color.FromArgb(255, 195, 121, 54);
+                    pink = Color.FromArgb(255, 194, 86, 112);
+                }
+                else
+                {
+                    green = Color.FromArgb(255, 42, 128, 88);
+                    orange = Color.FromArgb(255, 174, 94, 28);
+                    pink = Color.FromArgb(255, 174, 68, 96);
+                }
+            }
+
+            if (count <= GreenHoldNode)
+            {
+                return green;
+            }
+
+            if (count <= OrangeNode)
+            {
+                double amount = (double)(count - GreenHoldNode) / (OrangeNode - GreenHoldNode);
+                return LerpColor(green, orange, amount);
+            }
+
+            double pinkAmount = (double)(count - OrangeNode) / (PinkNode - OrangeNode);
+            return LerpColor(orange, pink, pinkAmount);
+        }
+
+        public static Color LerpColor(Color from, Color to, double amount)
+        {
+            amount = Math.Clamp(amount, 0, 1);
+
+            return Color.FromArgb(
+                (byte)Math.Round(from.A + (to.A - from.A) * amount),
+                (byte)Math.Round(from.R + (to.R - from.R) * amount),
+                (byte)Math.Round(from.G + (to.G - from.G) * amount),
+                (byte)Math.Round(from.B + (to.B - from.B) * amount)
+            );
+        }
+    }
+
     public class CountToBackgroundColorConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
-            int count = int.Parse(value.ToString());
-            SolidColorBrush brush;
-            if (count >= 0 && count <= 40)
+            bool isDarkTheme = GachaCountColorThemeHelper.IsDarkTheme();
+
+            if (GachaCountColorThemeHelper.TryGetCount(value, out int count))
             {
-                brush = new SolidColorBrush(Colors.Green);
+                return new SolidColorBrush(GachaCountColorThemeHelper.GetCountColor(count, false, isDarkTheme));
             }
-            else if (count >= 41 && count <= 70)
-            {
-                brush = new SolidColorBrush(Colors.Orange);
-            }
-            else if (count >= 71 && count <= 80)
-            {
-                brush = new SolidColorBrush(Colors.Red);
-            }
-            else
-            {
-                brush = new SolidColorBrush(Colors.Transparent);
-            }
-            Logging.Write($"Converting count {count} to background color", 0);
-            return brush;
+
+            return isDarkTheme
+                ? new SolidColorBrush(Color.FromArgb(255, 70, 70, 70))
+                : new SolidColorBrush(Color.FromArgb(255, 107, 114, 128));
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
@@ -572,26 +1175,16 @@ namespace WaveTools.Views.GachaViews
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
-            int count = int.Parse(value.ToString());
-            SolidColorBrush brush;
-            if (count >= 0 && count <= 40)
+            bool isDarkTheme = GachaCountColorThemeHelper.IsDarkTheme();
+
+            if (GachaCountColorThemeHelper.TryGetCount(value, out int count))
             {
-                brush = new SolidColorBrush(Colors.DarkGreen);
+                return new SolidColorBrush(GachaCountColorThemeHelper.GetCountColor(count, true, isDarkTheme));
             }
-            else if (count >= 41 && count <= 70)
-            {
-                brush = new SolidColorBrush(Colors.DarkOrange);
-            }
-            else if (count >= 71 && count <= 80)
-            {
-                brush = new SolidColorBrush(Colors.DarkRed);
-            }
-            else
-            {
-                brush = new SolidColorBrush(Colors.Transparent);
-            }
-            Logging.Write($"Converting count {count} to progress background color", 0);
-            return brush;
+
+            return isDarkTheme
+                ? new SolidColorBrush(Color.FromArgb(100, 130, 130, 130))
+                : new SolidColorBrush(Color.FromArgb(255, 137, 144, 158));
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
@@ -604,14 +1197,18 @@ namespace WaveTools.Views.GachaViews
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
-            // ªÒ»° Count µƒ÷µ
-            int count = int.Parse((string)value);
+            if (value is string countString && int.TryParse(countString, out int count))
+            {
+                double maxWidth = 259.0;
+                double maxPity = 80.0;
 
-            // ∂®“Â◊Ó¥ÛøÌ∂»
-            double maxWidth = 294;
-            double width = (count / 80.0) * maxWidth;
-            Logging.Write($"Converting count {count} to progress width {width}", 0);
-            return Math.Min(width, maxWidth);
+                if (count < 0) count = 0;
+                if (count > maxPity) count = (int)maxPity;
+
+                return maxWidth * count / maxPity;
+            }
+
+            return 0.0;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)

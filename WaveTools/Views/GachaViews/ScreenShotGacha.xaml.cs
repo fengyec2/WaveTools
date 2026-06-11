@@ -1,4 +1,4 @@
-using Microsoft.UI;
+ï»¿using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -83,12 +83,7 @@ namespace WaveTools.Views.GachaViews
                     return;
                 }
 
-                string recordsDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "JSG-LLC",
-                    "WaveTools",
-                    "GachaRecords"
-                );
+                string recordsDirectory = AppDataController.GetDataPath("GachaRecords");
 
                 string filePath = Path.Combine(recordsDirectory, $"{selectedUID}.json");
 
@@ -177,7 +172,7 @@ namespace WaveTools.Views.GachaViews
                 Logging.Write($"ScreenShotGacha LoadData failed: {ex.Message}", 2);
 
                 NotificationManager.RaiseNotification(
-                    "½ØÍ¼³é¿¨¼ÇÂ¼Ê§°Ü",
+                    "æˆªå›¾æŠ½å¡è®°å½•å¤±è´¥",
                     ex.Message,
                     InfoBarSeverity.Error,
                     false,
@@ -202,21 +197,14 @@ namespace WaveTools.Views.GachaViews
 
             char lastChar = uid[uid.Length - 1];
 
-            return new string('¡ñ', uid.Length - 1) + lastChar;
+            return new string('â—', uid.Length - 1) + lastChar;
         }
 
         public async Task CaptureScreenshotAsync(UIElement element)
         {
             try
             {
-                string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-
-                string gachaScreenshotsFolderPath = Path.Combine(
-                    documentsPath,
-                    "JSG-LLC",
-                    "WaveTools",
-                    "GachaScreenshots"
-                );
+                string gachaScreenshotsFolderPath = AppDataController.GetDataPath("GachaScreenshots");
 
                 Directory.CreateDirectory(gachaScreenshotsFolderPath);
 
@@ -277,9 +265,9 @@ namespace WaveTools.Views.GachaViews
 
                 var dialog = new ContentDialog
                 {
-                    Title = "´íÎó",
-                    Content = $"»ñÈ¡½ØÍ¼Ê±·¢Éú´íÎó: {ex.Message}",
-                    CloseButtonText = "È·¶¨",
+                    Title = "é”™è¯¯",
+                    Content = $"è·å–æˆªå›¾æ—¶å‘ç”Ÿé”™è¯¯: {ex.Message}",
+                    CloseButtonText = "ç¡®å®š",
                     XamlRoot = XamlRoot
                 };
 
@@ -363,7 +351,7 @@ namespace WaveTools.Views.GachaViews
 
             if (records == null || records.Count == 0 || string.IsNullOrWhiteSpace(id))
             {
-                return "Î´ÕÒµ½";
+                return "æœªæ‰¾åˆ°";
             }
 
             int countSinceLastTargetStar = 1;
@@ -391,7 +379,7 @@ namespace WaveTools.Views.GachaViews
 
             if (!foundTargetStar)
             {
-                return "Î´ÕÒµ½";
+                return "æœªæ‰¾åˆ°";
             }
 
             Logging.Write($"Count since last target star: {countSinceLastTargetStar}", 0);
@@ -448,7 +436,7 @@ namespace WaveTools.Views.GachaViews
                 return record.ResourceType;
             }
 
-            return record.QualityLevel + "ĞÇ";
+            return record.QualityLevel + "æ˜Ÿ";
         }
 
         private string CalculatePity(string name, int selectedCardPoolId, GachaModel.CardPoolInfo cardPoolInfo)
@@ -467,19 +455,19 @@ namespace WaveTools.Views.GachaViews
 
             var permanentFiveStarNames = new List<string>
             {
-                "°²¿É",
-                "¼øĞÄ",
-                "Î¬ÀïÄÎ",
-                "¿¨¿¨ÂŞ",
-                "ÁèÑô"
+                "å®‰å¯",
+                "é‰´å¿ƒ",
+                "ç»´é‡Œå¥ˆ",
+                "å¡å¡ç½—",
+                "å‡Œé˜³"
             };
 
             if (permanentFiveStarNames.Contains(name))
             {
-                return "ÍáÁË";
+                return "æ­ªäº†";
             }
 
-            return "Ã»Íá";
+            return "æ²¡æ­ª";
         }
 
         private List<int> CalculateIntervals(List<GachaModel.GachaRecord> records, int QualityLevel)
@@ -565,17 +553,17 @@ namespace WaveTools.Views.GachaViews
 
             string averageDraws4Star = fourStarIntervals.Count > 0
                 ? fourStarIntervals.Average().ToString("F2")
-                : "¡Ş";
+                : "âˆ";
 
             string averageDraws5Star = fiveStarIntervals.Count > 0
                 ? fiveStarIntervals.Average().ToString("F2")
-                : "¡Ş";
+                : "âˆ";
 
             string uid = GetUid(gachaData);
 
             Gacha_UID.Text = isHideUID ? MaskUID(uid) : uid;
-            GachaRecords_Count.Text = "¹²" + selectedRecords.Count + "³é";
-            GachaInfo_SinceLast5Star.Text = $"µæÁË{countSinceLast5Star}·¢";
+            GachaRecords_Count.Text = "å…±" + selectedRecords.Count + "æŠ½";
+            GachaInfo_SinceLast5Star.Text = $"å«äº†{countSinceLast5Star}å‘";
 
             var basicInfoPanel = CreateDetailBorder();
             var stackPanelBasicInfo = new StackPanel();
@@ -586,10 +574,10 @@ namespace WaveTools.Views.GachaViews
                 FontWeight = FontWeights.Bold
             });
 
-            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"×Ü¼Æ³éÊı: {selectedRecords.Count}" });
-            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"³éµ½5ĞÇ´ÎÊı: {rank5Records.Count}" });
-            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"³éµ½4ĞÇ´ÎÊı: {rank4Records.Count}" });
-            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"Ô¤¼ÆÊ¹ÓÃĞÇÉù: {selectedRecords.Count * 160}" });
+            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"æ€»è®¡æŠ½æ•°: {selectedRecords.Count}" });
+            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"æŠ½åˆ°5æ˜Ÿæ¬¡æ•°: {rank5Records.Count}" });
+            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"æŠ½åˆ°4æ˜Ÿæ¬¡æ•°: {rank4Records.Count}" });
+            stackPanelBasicInfo.Children.Add(new TextBlock { Text = $"é¢„è®¡ä½¿ç”¨æ˜Ÿå£°: {selectedRecords.Count * 160}" });
 
             basicInfoPanel.Child = stackPanelBasicInfo;
             contentPanel.Children.Add(basicInfoPanel);
@@ -599,40 +587,40 @@ namespace WaveTools.Views.GachaViews
 
             stackPanelDetailInfo.Children.Add(new TextBlock
             {
-                Text = "ÏêÏ¸Í³¼Æ",
+                Text = "è¯¦ç»†ç»Ÿè®¡",
                 FontWeight = FontWeights.Bold
             });
 
-            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"5ĞÇÆ½¾ù³éÊı: {averageDraws5Star}³é" });
-            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"4ĞÇÆ½¾ù³éÊı: {averageDraws4Star}³é" });
+            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"5æ˜Ÿå¹³å‡æŠ½æ•°: {averageDraws5Star}æŠ½" });
+            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"4æ˜Ÿå¹³å‡æŠ½æ•°: {averageDraws4Star}æŠ½" });
 
             string rate4Star = selectedRecords.Count > 0
                 ? (rank4Records.Count / (double)selectedRecords.Count * 100).ToString("F2") + "%"
-                : "¡Ş";
+                : "âˆ";
 
             string rate5Star = selectedRecords.Count > 0
                 ? (rank5Records.Count / (double)selectedRecords.Count * 100).ToString("F2") + "%"
-                : "¡Ş";
+                : "âˆ";
 
-            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"5ĞÇ»ñÈ¡ÂÊ: {rate5Star}" });
-            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"4ĞÇ»ñÈ¡ÂÊ: {rate4Star}" });
+            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"5æ˜Ÿè·å–ç‡: {rate5Star}" });
+            stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"4æ˜Ÿè·å–ç‡: {rate4Star}" });
 
             if (rank5Records.Any())
             {
-                stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"×î½ü5ĞÇ: {rank5Records.First().Time}" });
+                stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"æœ€è¿‘5æ˜Ÿ: {rank5Records.First().Time}" });
             }
             else
             {
-                stackPanelDetailInfo.Children.Add(new TextBlock { Text = "×î½ü5ĞÇ: ¡Ş" });
+                stackPanelDetailInfo.Children.Add(new TextBlock { Text = "æœ€è¿‘5æ˜Ÿ: âˆ" });
             }
 
             if (rank4Records.Any())
             {
-                stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"×î½ü4ĞÇ: {rank4Records.First().Time}" });
+                stackPanelDetailInfo.Children.Add(new TextBlock { Text = $"æœ€è¿‘4æ˜Ÿ: {rank4Records.First().Time}" });
             }
             else
             {
-                stackPanelDetailInfo.Children.Add(new TextBlock { Text = "×î½ü4ĞÇ: ¡Ş" });
+                stackPanelDetailInfo.Children.Add(new TextBlock { Text = "æœ€è¿‘4æ˜Ÿ: âˆ" });
             }
 
             detailInfoPanel.Child = stackPanelDetailInfo;
@@ -645,7 +633,7 @@ namespace WaveTools.Views.GachaViews
 
             stackPanelFiveStar.Children.Add(new TextBlock
             {
-                Text = $"¾àÀëÉÏÒ»¸ö5ĞÇÒÑ¾­µæÁË{countSinceLast5Star}·¢",
+                Text = $"è·ç¦»ä¸Šä¸€ä¸ª5æ˜Ÿå·²ç»å«äº†{countSinceLast5Star}å‘",
                 FontWeight = FontWeights.Bold
             });
 
@@ -654,9 +642,9 @@ namespace WaveTools.Views.GachaViews
                 stackPanelFiveStar.Children.Add(CreateProgressBar(countSinceLast5Star, selectedCardPool.FiveStarPity.Value));
                 stackPanelFiveStar.Children.Add(new TextBlock
                 {
-                    Text = $"±£µ×{selectedCardPool.FiveStarPity.Value}·¢",
+                    Text = $"ä¿åº•{selectedCardPool.FiveStarPity.Value}å‘",
                     FontSize = 12,
-                    Foreground = new SolidColorBrush(Colors.Gray)
+                    Foreground = (Brush)Application.Current.Resources["AppTextSecondaryBrush"]
                 });
             }
 
@@ -668,7 +656,7 @@ namespace WaveTools.Views.GachaViews
 
             stackPanelFourStar.Children.Add(new TextBlock
             {
-                Text = $"¾àÀëÉÏÒ»¸ö4ĞÇÒÑ¾­³éÁË{countSinceLast4Star}·¢",
+                Text = $"è·ç¦»ä¸Šä¸€ä¸ª4æ˜Ÿå·²ç»æŠ½äº†{countSinceLast4Star}å‘",
                 FontWeight = FontWeights.Bold
             });
 
@@ -677,9 +665,9 @@ namespace WaveTools.Views.GachaViews
                 stackPanelFourStar.Children.Add(CreateProgressBar(countSinceLast4Star, selectedCardPool.FourStarPity.Value));
                 stackPanelFourStar.Children.Add(new TextBlock
                 {
-                    Text = $"±£µ×{selectedCardPool.FourStarPity.Value}·¢",
+                    Text = $"ä¿åº•{selectedCardPool.FourStarPity.Value}å‘",
                     FontSize = 12,
-                    Foreground = new SolidColorBrush(Colors.Gray)
+                    Foreground = (Brush)Application.Current.Resources["AppTextSecondaryBrush"]
                 });
             }
 
@@ -768,7 +756,7 @@ namespace WaveTools.Views.GachaViews
             {
                 Padding = new Thickness(10),
                 Margin = new Thickness(0, 4, 0, 4),
-                BorderBrush = new SolidColorBrush(Colors.Gray),
+                BorderBrush = (Brush)Application.Current.Resources["AppSeparatorBrush"],
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8)
             };
