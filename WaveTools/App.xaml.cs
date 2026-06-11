@@ -27,12 +27,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using WaveTools.Depend;
-using WaveTools.Depend;
-using WaveTools.Views;
 using Windows.Graphics;
-using Windows.Storage;
 using WinRT.Interop;
-
 
 namespace WaveTools
 {
@@ -42,50 +38,46 @@ namespace WaveTools
         public static ApplicationTheme CurrentTheme { get; private set; }
         public static bool GDebugMode { get; set; }
         public static bool SDebugMode { get; set; }
-        // 导入 AllocConsole 和 FreeConsole 函数
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool AllocConsole();
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool FreeConsole();
-        // 导入 GetAsyncKeyState 函数
         [DllImport("User32.dll")]
         public static extern short GetAsyncKeyState(int vKey);
-        GetNotify getNotify = new GetNotify();
-        private Window m_window;
 
-        // 私有构造函数以确保单例
-        public App()
-        {
-            InitializeComponent();
-            Init();
-            InitAppData();
-            SetupTheme();
-            InitAdminMode();
-        }
+        private readonly GetNotify getNotify = new GetNotify();
+        private Window m_window;
 
         public static bool IsRequireReboot { get; set; } = false;
         public static bool IsWaveToolsRequireUpdate { get; set; } = false;
         public static bool IsWaveToolsHelperRequireUpdate { get; set; } = false;
 
+        public App()
+        {
+            InitializeComponent();
+            InitAppData();
+            Init();
+            SetupTheme();
+            InitAdminMode();
+        }
 
         protected override async void OnLaunched(LaunchActivatedEventArgs args)
         {
-            if (AppDataController.GetTerminalMode() == -1 || AppDataController.GetTerminalMode() == 0)
+            int terminalMode = AppDataController.GetTerminalMode();
+
+            if (terminalMode <= 0)
             {
-                m_window = new MainWindow();
-                CenterWindow(m_window);
-                m_window.Activate();
-                // 处理窗口的 Closed 事件
-                m_window.Closed += OnWindowClosed;
+                CreateMainWindow();
+                return;
             }
-            else await InitTerminalModeAsync(AppDataController.GetTerminalMode());
+
+            await InitTerminalModeAsync(terminalMode);
         }
 
-        private void InitAppData() 
+        private void InitAppData()
         {
-            ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-            if (localSettings.Values["Config_FirstRun"] == null)
+            if (AppDataController.GetFirstRun() == -1)
             {
                 AppDataController appDataController = new AppDataController();
                 appDataController.FirstRunInit();
@@ -96,63 +88,69 @@ namespace WaveTools
         {
             if (AppDataController.GetAdminMode() == 1)
             {
-                if (!ProcessRun.IsRunAsAdmin()) ProcessRun.RequestAdminAndRestart();
+                if (!ProcessRun.IsRunAsAdmin())
+                {
+                    ProcessRun.RequestAdminAndRestart();
+                }
             }
         }
 
         private void SetupTheme()
         {
-            var dayNight = AppDataController.GetDayNight();
+            int dayNight = AppDataController.GetDayNight();
+
             try
             {
                 if (dayNight == 1)
                 {
-                    this.RequestedTheme = ApplicationTheme.Light;
+                    RequestedTheme = ApplicationTheme.Light;
+                    CurrentTheme = ApplicationTheme.Light;
                 }
                 else if (dayNight == 2)
                 {
-                    this.RequestedTheme = ApplicationTheme.Dark;
+                    RequestedTheme = ApplicationTheme.Dark;
+                    CurrentTheme = ApplicationTheme.Dark;
                 }
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 Logging.Write(ex.StackTrace);
                 NotificationManager.RaiseNotification("主题切换失败", ex.Message, InfoBarSeverity.Error);
             }
-            
         }
 
-        public async Task InitTerminalModeAsync(int Mode) 
+        public async Task InitTerminalModeAsync(int mode)
         {
             TerminalMode.ShowConsole();
+
             TerminalMode terminalMode = new TerminalMode();
-            bool response = await terminalMode.Init(Mode);
+            bool response = await terminalMode.Init(mode);
+
             if (response)
             {
-                m_window = new MainWindow();
-                CenterWindow(m_window);
-                m_window.Activate();
+                CreateMainWindow();
             }
         }
 
         public void Init()
         {
             AllocConsole();
+
             Console.OutputEncoding = Encoding.UTF8;
             Console.InputEncoding = Encoding.UTF8;
             Console.SetWindowSize(60, 25);
             Console.SetBufferSize(60, 25);
+
             TerminalMode.HideConsole();
-            bool isDebug = false;
+
             GDebugMode = false;
+
 #if DEBUG
-            isDebug = true;
             GDebugMode = true;
-#else
 #endif
 
-            ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-            if (localSettings.Values["Config_FirstRun"] != null) { 
+            if (AppDataController.GetFirstRun() != -1)
+            {
                 switch (AppDataController.GetConsoleMode())
                 {
                     case 0:
@@ -166,19 +164,19 @@ namespace WaveTools
                         break;
                 }
             }
+        }
 
-
-            if (AppDataController.GetTerminalMode() != -1)
-            {
-                int Mode = (int)localSettings.Values["Config_TerminalMode"];
-                TerminalMode terminalMode = new TerminalMode();
-            }
-
+        private void CreateMainWindow()
+        {
+            m_window = new MainWindow();
+            MainWindow = (MainWindow)m_window;
+            CenterWindow(m_window);
+            m_window.Activate();
+            m_window.Closed += OnWindowClosed;
         }
 
         private void OnWindowClosed(object sender, WindowEventArgs e)
         {
-            // 关闭应用程序
             Windows.ApplicationModel.Core.CoreApplication.Exit();
         }
 
@@ -211,7 +209,6 @@ namespace WaveTools
 
             public static void RaiseDialog(XamlRoot xamlRoot, string title = null, object content = null, bool isPrimaryButtonEnabled = false, string primaryButtonContent = "", Action primaryButtonAction = null, bool isSecondaryButtonEnabled = false, string secondaryButtonContent = "", Action secondaryButtonAction = null)
             {
-                // 如果content是string类型，则创建一个TextBlock来包装它
                 if (content is string textContent)
                 {
                     content = new TextBlock { Text = textContent };
@@ -237,6 +234,5 @@ namespace WaveTools
 
             appWindow.Move(new PointInt32(centeredX, centeredY));
         }
-
     }
 }
